@@ -126,8 +126,11 @@ namespace TempSuitability_CSharp
                 double minTemp = SpinUpTemps[i];
                 double survivalRate = GetSurvivingFraction(minTemp);
                 double degreeDays = Math.Max(((minTemp - m_TempThreshold) * m_SliceLengthDays), 0);
+                
                 // we don't care what the actual result of the sum is at this point
+                // It's much neater to say:
                 //m_Population.Sum(coh => coh.Iterate(degreeDays, survivalRate));
+                // But also much slower! Use ye olde loop instead.
                 foreach (Cohort coh in m_Population)
                 {
                     coh.Iterate(degreeDays, survivalRate);
@@ -162,11 +165,14 @@ namespace TempSuitability_CSharp
             // So all we have to do is this time-slice's temperature to all currently living cohorts and 
             // summarise the return values.
             double tsAtSlice = 0;
+            // It would be sweeter to say:
+            // double tsAtSLice = m_Population.Sum(coh => coh.Iterate(degreeDays, survivalRate));
+            // But that's substantially slower thanks to the linq overhead, given the tightness of this loop.
             foreach (Cohort coh in m_Population)
             {
                 tsAtSlice += coh.Iterate(degreeDays, survivalRate);
             }
-            //double tsAtSLice = m_Population.Sum(coh => coh.Iterate(degreeDays, survivalRate));
+
             // Remove the oldest cohort, which should now be dead anyway
             Cohort tDeadCohort = m_Population.Dequeue();
             Debug.Assert(tDeadCohort.IsDead);

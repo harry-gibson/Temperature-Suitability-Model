@@ -247,5 +247,15 @@ namespace TempSuitability_CSharp
             }
             return hrTemp;
         }
+
+        private double InterpolateDailyTemp(int JulianDay)
+        {
+            // PLACEHOLDER
+            // Create a field of type CubicSpline and initialise it with input 8-daily temperatures.
+            // Use that to interpolate temp at a given day
+
+            // Or see code at https://gist.github.com/dreikanter/3526685
+            return 0;
+        }
     }
 }

@@ -8,4 +8,4 @@ Work with 256 pixel square tiles
 We don't need to store the daily or 2 hourly temperature estimates in memory: - 
 we only need each once, so there is no advantage in doing so. 
 
-Therefore we run the model for the entire period in one pass! 
+Therefore we run the model for the entire period in one pass - memory is no longer a significant issue. 

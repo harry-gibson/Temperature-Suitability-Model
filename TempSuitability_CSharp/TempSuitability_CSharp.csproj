@@ -89,14 +89,16 @@
     <Compile Include="Cohort.cs" />
     <Compile Include="DataPrep.cs" />
     <Compile Include="GdalConfiguration.cs" />
-    <Compile Include="Program.cs" />
+    <Compile Include="TempSuitabilityModelTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TSModel.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <None Include="ImplementationNotes.md" />
     <None Include="Memory_Notes.md" />
     <None Include="packages.config" />
+    <None Include="README.md" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="GdalConfiguration.vb" />
