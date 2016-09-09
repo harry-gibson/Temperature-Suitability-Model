@@ -138,22 +138,45 @@ namespace TempSuitability_CSharp
             int npx = m_readsizeX * m_readsizeY;
             int nbands = m_FileDates.Count;
 
-            float[] tileFlatArr = ReadRegionAcrossFiles(xOffset, yOffset, xSize, ySize);
             var cellArr = new float[npx][];
-            int cellNum;
 
-            for (int y=0; y < ySize; y++)
+            if (((long)npx * nbands * 4) < (2 ^ 31))
             {
-                for (int x = 0; x < xSize; x++)
+                float[] tileFlatArr = ReadRegionAcrossFiles_Flat(xOffset, yOffset, xSize, ySize);
+                int cellNum;
+                for (int y = 0; y < ySize; y++)
                 {
-                    cellNum = y * xSize + x;
-                    cellArr[cellNum] = new float[nbands];
-                    for (int z = 0; z<nbands; z++)
+                    for (int x = 0; x < xSize; x++)
                     {
-                        cellArr[cellNum][z] = tileFlatArr[npx * z + cellNum];
+                        cellNum = y * xSize + x;
+                        cellArr[cellNum] = new float[nbands];
+                        for (int z = 0; z < nbands; z++)
+                        {
+                            cellArr[cellNum][z] = tileFlatArr[npx * z + cellNum];
+                        }
                     }
                 }
+
             }
+            else
+            {
+                float[][] tileFlatArr = ReadRegionAcrossFiles(xOffset, yOffset, xSize, ySize);
+                int cellNum;
+                for (int y = 0; y < ySize; y++)
+                {
+                    for (int x = 0; x < xSize; x++)
+                    {
+                        cellNum = y * xSize + x;
+                        cellArr[cellNum] = new float[nbands];
+                        for (int z = 0; z < nbands; z++)
+                        {
+                            cellArr[cellNum][z] = tileFlatArr[z][cellNum];
+                        }
+                    }
+                }
+
+            }
+
             return cellArr;
         }
 
@@ -167,9 +190,9 @@ namespace TempSuitability_CSharp
         /// <param name="xSize"></param>
         /// <param name="ySize"></param>
         /// <returns></returns>
-        public float[] ReadRegionAcrossFiles(int xOffset, int yOffset, int xSize, int ySize)
+        public float[] ReadRegionAcrossFiles_Flat(int xOffset, int yOffset, int xSize, int ySize)
         {
-            var f = m_FileDates.Values;
+           // var f = m_FileDates.Values;
             int nPixPerTile = xSize * ySize;
             float[] tileData = new float[nPixPerTile * m_FileDates.Count];
             int fileNum = 0;
@@ -203,6 +226,39 @@ namespace TempSuitability_CSharp
             }
             return tileData;
         }
+        public float[][]ReadRegionAcrossFiles(int xOffset, int yOffset, int xSize, int ySize)
+        {
+            int nPixPerTile = xSize * ySize;
+            float[][] tileData = new float[m_FileDates.Count][];
+            int fileNum = 0;
+            foreach (var t in m_FileDates)
+            {
+                var newshape = GDAL_Operations.GetRasterShape(t.Value);
+                if (newshape.Item1 != Shape.Item1 || newshape.Item2 != Shape.Item2)
+                {
+                    throw new ArgumentException("Raster shapes don't match");
+                }
+                var newGT = GDAL_Operations.GetGeoTransform(t.Value);
+                if (!GeoTransform.SequenceEqual(newGT))
+                {
+                    throw new ArgumentException("Raster geotransforms don't match");
+                }
+                var newNDV = GDAL_Operations.GetNoDataValue(t.Value);
+                if (newNDV != NoDataValue)
+                {
+                    throw new ArgumentException("Raster nodata values don't match");
+                }
+                var newProj = GDAL_Operations.GetProjection(t.Value);
+                if (newProj != Projection)
+                {
+                    throw new ArgumentException("Raster projections don't match");
+                }
+                tileData[fileNum] = GDAL_Operations.ReadGDALRasterBandsToFlatArray(
+                    t.Value, xSize, ySize, xOffset, yOffset, 1);
+                fileNum += 1;
+            }
+            return tileData;
+        }
 
         /// <summary>
         /// Parse the dates for all files matching the given wildcard, and store these against the 
@@ -212,6 +268,8 @@ namespace TempSuitability_CSharp
         {
             string _dir = System.IO.Path.GetDirectoryName(m_FileWildCard);
             string _fnPattern = System.IO.Path.GetFileName(m_FileWildCard);
+            System.Console.WriteLine("Looking for files in " + m_FileWildCard);
+
             string[] _files = System.IO.Directory.GetFiles(_dir, _fnPattern);
             m_FileDates = new SortedList<DateTime,string> (_files
                 .Select(fn => new KeyValuePair<DateTime?, string>(m_FilenameDateParser.TryParseFilenameDate(fn), fn))

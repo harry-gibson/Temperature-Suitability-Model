@@ -113,15 +113,17 @@ namespace TempSuitability_CSharp
         private readonly double m_SliceLengthDays;
         private readonly double m_TempThreshold;
         private readonly double m_InfectionThreshold;
+        private readonly double m_UpperTempLimit;
 
         public bool IsInitialised { get; private set; }
 
-        public PopulationOO(int LifespanSlices, double SliceLengthDays, double TempThreshold, double InfectionThreshold)
+        public PopulationOO(int LifespanSlices, double SliceLengthDays, double TempThreshold, double InfectionThreshold, double DeathAboveTemperature)
         {
             m_LifespanSlices = LifespanSlices;
             m_SliceLengthDays = SliceLengthDays;
             m_InfectionThreshold = InfectionThreshold;
             m_TempThreshold = TempThreshold;
+            m_UpperTempLimit = DeathAboveTemperature;
             IsInitialised = false;
             // Create the population "queue" with length of one lifespan 
             m_Population = new Queue<Cohort>(LifespanSlices);
@@ -142,7 +144,7 @@ namespace TempSuitability_CSharp
             {
 
                 double minTemp = SpinUpTemps[i];
-                double survivalRate = MossieMethods.GetSurvivingFraction(minTemp, m_SliceLengthDays);
+                double survivalRate = MossieMethods.GetSurvivingFraction(minTemp, m_SliceLengthDays, m_UpperTempLimit);
                 double degreeDays = Math.Max(((minTemp - m_TempThreshold) * m_SliceLengthDays), 0);
 
                 // we don't care what the actual result of the sum is at this point
@@ -179,7 +181,7 @@ namespace TempSuitability_CSharp
             // Calculate degree days once here rather than in every Cohort.
             double degreeDays = Math.Max(((minTemp - m_TempThreshold) * m_SliceLengthDays), 0);
             // Calculate survival fraction once here rather than in every Cohort
-            double survivalRate = MossieMethods.GetSurvivingFraction(minTemp, m_SliceLengthDays);
+            double survivalRate = MossieMethods.GetSurvivingFraction(minTemp, m_SliceLengthDays, m_UpperTempLimit);
             // Temperature suitability at this slice is simply the sum of Contributions from every Cohort.
             // This is given before applying the death / decay of this timeslice.
             // So all we have to do is this time-slice's temperature to all currently living cohorts and 
@@ -217,13 +219,16 @@ namespace TempSuitability_CSharp
         private readonly double m_SliceLengthDays;
         private readonly double m_TempThreshold;
         private readonly double m_InfectionThreshold;
+        private readonly double m_UpperTempLimit;
+
         public bool IsInitialised { get; private set; }
-        public PopulationArray(int LifespanSlices, double SliceLengthDays, double TempThreshold, double InfectionThreshold)
+        public PopulationArray(int LifespanSlices, double SliceLengthDays, double TempThreshold, double InfectionThreshold, double DeathAboveTemperature)
         {
             m_LifespanSlices = LifespanSlices;
             m_SliceLengthDays = SliceLengthDays;
             m_InfectionThreshold = InfectionThreshold;
             m_TempThreshold = TempThreshold;
+            m_UpperTempLimit = DeathAboveTemperature;
             IsInitialised = false;
             // Create the population "queue" with length of one lifespan 
         }
@@ -247,15 +252,14 @@ namespace TempSuitability_CSharp
 
             for (int i = 0; i < m_LifespanSlices; i++)
             {
-                
                 double minTemp = SpinUpTemps[i];
-                double survivalRate = MossieMethods.GetSurvivingFraction(minTemp, m_SliceLengthDays);
+                // survival rate is zero if the upper temp threshold is exceeded, meaning all cohorts will die
+                double survivalRate = MossieMethods.GetSurvivingFraction(minTemp, m_SliceLengthDays, m_UpperTempLimit);
                 double degreeDays = Math.Max(((minTemp - m_TempThreshold) * m_SliceLengthDays), 0);
 
                 // we don't care what the actual result of the sum is at this point
                 for (int cohPos = 0; cohPos < i; cohPos++)
                 {
-
                     localContribs[cohPos] *= survivalRate;
                     localDegDays[i] += degreeDays;
                 }
@@ -285,25 +289,26 @@ namespace TempSuitability_CSharp
             {
                 throw new InvalidOperationException("Population has not yet been initialised");
             }
-            // Calculate degree days once here rather than in every Cohort.
-            double degreeDays = Math.Max(((minTemp - m_TempThreshold) * m_SliceLengthDays), 0);
-            // Calculate survival fraction once here rather than in every Cohort
-            double survivalRate = MossieMethods.GetSurvivingFraction(minTemp, m_SliceLengthDays);
-            // Temperature suitability at this slice is simply the sum of Contributions from every Cohort.
-            // This is given before applying the death / decay of this timeslice.
-            // So all we have to do is apply this time-slice's temperature to all currently living cohorts and 
-            // summarise the return values.
-            double tsAtSlice = 0;
-
             // work on a local copy rather than referencing the fields in the tight loop;
             // this saves approx 10% of overall program runtime!
             double[] localContribs = m_Contribs;
             double[] localDegDays = m_DegDays;
             double localThreshold = m_InfectionThreshold;
+
+            // Calculate degree days once here rather than in every Cohort.
+            double degreeDays = Math.Max(((minTemp - m_TempThreshold) * m_SliceLengthDays), 0);
+            // Calculate survival fraction once here rather than in every Cohort
+            double survivalRate = MossieMethods.GetSurvivingFraction(minTemp, m_SliceLengthDays, m_UpperTempLimit);
+            // Temperature suitability at this slice is simply the sum of Contributions from every Cohort.
+            // This is given before applying the death / decay of this timeslice.
+            // So all we have to do is apply this time-slice's temperature to all currently living cohorts and 
+            // summarise the return values.
+            double tsAtSlice = 0;
             // calculate and summarise the contribution of all living cohorts first...
             for (int cohPos = 0; cohPos < localContribs.Length; cohPos++)
             {
-                if (localDegDays[cohPos] > localThreshold){
+                if (localDegDays[cohPos] > localThreshold)
+                {
                     tsAtSlice += localContribs[cohPos];
                 }
                 // ... BEFORE applying the decay function
@@ -336,7 +341,9 @@ namespace TempSuitability_CSharp
     }
 
     /// <summary>
-    /// Implements a mosquito population at a cell using pointer types, as opposed to Queue and Cohort.
+    /// Implements a mosquito population at a cell using pointer types, as opposed to Queue and Cohort. 
+    /// Due to the tightness of the Iterate loop this is substantially the fastest implementation.
+    /// (The iterate loop runs 372 * 12 * 365 * 17 times at every pixel location!) 
     /// </summary>
     class PopulationPtr : IIterablePopulation
     {
@@ -348,13 +355,16 @@ namespace TempSuitability_CSharp
         private readonly double m_SliceLengthDays;
         private readonly double m_TempThreshold;
         private readonly double m_InfectionThreshold;
+        private readonly double m_UpperTempLimit;
+
         public bool IsInitialised { get; private set; }
-        public PopulationPtr(int LifespanSlices, double SliceLengthDays, double TempThreshold, double InfectionThreshold)
+        public PopulationPtr(int LifespanSlices, double SliceLengthDays, double TempThreshold, double InfectionThreshold, double DeathAboveTemperature)
         {
             m_LifespanSlices = LifespanSlices;
             m_SliceLengthDays = SliceLengthDays;
             m_InfectionThreshold = InfectionThreshold;
             m_TempThreshold = TempThreshold;
+            m_UpperTempLimit = DeathAboveTemperature;
             IsInitialised = false;
             // Create the population "queue" with length of one lifespan 
         }
@@ -380,13 +390,12 @@ namespace TempSuitability_CSharp
             {
 
                 double minTemp = SpinUpTemps[i];
-                double survivalRate = MossieMethods.GetSurvivingFraction(minTemp, m_SliceLengthDays);
+                double survivalRate = MossieMethods.GetSurvivingFraction(minTemp, m_SliceLengthDays, m_UpperTempLimit);
                 double degreeDays = Math.Max(((minTemp - m_TempThreshold) * m_SliceLengthDays), 0);
 
                 // we don't care what the actual result of the sum is at this point
                 for (int cohPos = 0; cohPos < i; cohPos++)
                 {
-
                     localContribs[cohPos] *= survivalRate;
                     localDegDays[i] += degreeDays;
                 }
@@ -423,7 +432,7 @@ namespace TempSuitability_CSharp
                 degreeDays = 0;
             }
             // Calculate survival fraction once here rather than in every Cohort
-            double survivalRate = MossieMethods.GetSurvivingFraction(minTemp, m_SliceLengthDays);
+            double survivalRate = MossieMethods.GetSurvivingFraction(minTemp, m_SliceLengthDays, m_UpperTempLimit);
             // Temperature suitability at this slice is simply the sum of Contributions from every Cohort.
             // This is given before applying the death / decay of this timeslice.
             // So all we have to do is apply this time-slice's temperature to all currently living cohorts and 
@@ -448,45 +457,40 @@ namespace TempSuitability_CSharp
                         // of this timeslice based on the surviving fraction _before_ this timeslice's die-off
                         tsAtSlice += *pContrib;
                     }
-                    // reduce the surviving fraction of this cohort
+                    // reduce the surviving fraction of this cohort (possibly to zero if mosoquito-baking temp was exceeded)
                     *pContrib *= survivalRate;
-                    // add the degree-days of this slice to the total degree days experienced by this cohort
+                    // add the degree-days of this slice to the total degree days experienced by this cohort (probably quicker 
+                    // just to do it rather than only conditionally doing it if baking didn't occur)
                     *pDegDay += degreeDays;
                     // move pointer for contribution and degree day onto next value
                     pContrib++;
                     pDegDay++;
                 }
             }
+            // spawn a new one 
             localContribs[m_NextToDie] = 1;
             localDegDays[m_NextToDie] = 0;
+            // copy local variables back to field
             m_Contribs = localContribs;
             m_DegDays = localDegDays;
             m_NextToDie = (m_NextToDie + 1) % m_LifespanSlices;
-
             return tsAtSlice;
         }
 
-        /// <summary>
-        /// The fraction surviving is the same for all cohorts as it only depends on temperature, so we 
-        /// calculate it once at each timeslice for the whole population
-        /// </summary>
-        /// <param name="minTemp"></param>
-        /// <returns></returns>
-        //private double GetSurvivingFraction(double minTemp)
-        //{
-        //    return Math.Pow(
-        //      (Math.Exp(-1 / (-4.4 + (1.31 * minTemp) - (0.03 * (Math.Pow(minTemp, 2)))))),
-        //      (m_SliceLengthDays));
-        //}
     }
 
     static class MossieMethods
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static double GetSurvivingFraction(double minTemp, double sliceLengthDays)
+        public static double GetSurvivingFraction(double sliceTemp, double sliceLengthDays, double deathTemp)
         {
+            if (sliceTemp > deathTemp)
+            {
+                return 0;
+            }
+
             var f = Math.Pow(
-             (Math.Exp(-1 / (-4.4 + (1.31 * minTemp) - (0.03 * (Math.Pow(minTemp, 2)))))),
+             (Math.Exp(-1 / (-4.4 + (1.31 * sliceTemp) - (0.03 * (Math.Pow(sliceTemp, 2)))))),
              (sliceLengthDays));
             return f < 0 ? 0 : f > 1 ? 0 : f;
         }

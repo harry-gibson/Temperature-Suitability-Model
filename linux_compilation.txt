@@ -1,0 +1,37 @@
+Notes for running C# GDAL applications via Mono on Linux (e.g. blades)
+
+The gdal binaries for C# binding can be downloaded from https://github.com/jealie/binaries_GDAL_Csharp
+These must be available to the application. However these binaries are compiled by the provided against a particular version of the GDAL libraries themselves and whatever native system libraries are used.
+So they may not work.
+
+Instead, compile GDAL and the bindings from source, following the step by step instructions here:
+https://github.com/jealie/binaries_GDAL_Csharp/blob/master/compilationNotes.txt
+Basically:
+
+- Get the files:
+curl -L http://download.osgeo.org/gdal/2.1.1/gdal-2.1.1.tar.gz | tar xz
+
+- Build GDAL:
+cd gdal-2.1.1/
+./configure --prefix `pwd`/build --without-python CFLAGS="-fPIC"
+make -j ( -j means use multiple cores, else it takes ages!)
+make install
+
+- Change some typos:
+cd swig/csharp
+
+edit osr/OsrPINVOKE.cs, ogr/OsrPINVOKE.cs, ogr/OgrPINVOKE.cs, and gdal/GdalPINVOKE.cs. From each remove the duplicate declaration of static XXXPINVOKE(){} at around line 186
+
+edit gdal/Band.cs, gdal/Dataset.cs, gdal/Driver.cs and in each change the constructor at around line 17, replacing e.g. GdalPINVOKE.DatasetUpcast with GdalPINVOKE.Dataset_SWIGUpcast. That is, insert "_SWIG" before "Upcast"
+
+(still in swig/csharp)
+make
+g++ -shared -o libgdal_wrap.so gdal_wrap.o ../../build/lib/libgdal.so
+
+Now copy 
+build/lib/libgdal.so.20, swig/csharp/libgdal_wrap.so, and swig/csharp/gdal_csharp.dll into the folder with the .exe file. Remove .20 from the end of the first one (I think). 
+
+Execute the program using
+LD_PRELOAD="/path/to/libgdal.so /path/to/libgdal_wrap.so" mono --gc=sgen your_program.exe
+
+

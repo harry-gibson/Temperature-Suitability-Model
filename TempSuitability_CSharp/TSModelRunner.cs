@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Diagnostics;
-
+using System.Configuration;
 namespace TempSuitability_CSharp
 {
     class TSModelRunner
@@ -25,12 +25,12 @@ namespace TempSuitability_CSharp
             string maskPath, dayPath, nightPath, outDir;
             int maskValidValue;
             try {
-                maskPath = args[0];
-                dayPath = args[1];
-                nightPath = args[2];
-                outDir = args[3];
-                maskValidValue = Convert.ToInt32(args[4]);
-                /* "\\map-fs1.ndph.ox.ac.uk\map_data\mastergrids\Global_Masks\Land_Sea_Masks\CoastGlobal_5k.tif" 
+                maskPath = TS_Model_Run_Settings.Default.LS_Mask_File;
+                dayPath = TS_Model_Run_Settings.Default.LST_Day_Files;
+                nightPath = TS_Model_Run_Settings.Default.LST_Night_Files;
+                outDir = TS_Model_Run_Settings.Default.OutputFolder;
+                maskValidValue = TS_Model_Run_Settings.Default.MaskValidValue;
+                /* args:  "\\map-fs1.ndph.ox.ac.uk\map_data\mastergrids\Global_Masks\Land_Sea_Masks\CoastGlobal_5k.tif" 
                 "\\map-fs1.ndph.ox.ac.uk\map_data\mastergrids\MODIS_Global\MOD11A2_LST\LST_Day\5km\8-Daily\*Max.tif" 
                 "\\map-fs1.ndph.ox.ac.uk\map_data\mastergrids\MODIS_Global\MOD11A2_LST\LST_Night\5km\8-Daily\*Min.tif"
                 "C:\temp\tsmodel"
@@ -38,11 +38,18 @@ namespace TempSuitability_CSharp
             }
             catch
             {
-                maskPath = "\\\\map-fs1.ndph.ox.ac.uk\\map_data\\mastergrids\\Global_Masks\\Land_Sea_Masks\\CoastGlobal.tiff";
-                dayPath = "F:\\MOD11A2_Gapfilled_Output\\LST_Day\\Output_Final_30k_2030pc\\*Data.tif";
-                nightPath = "F:\\MOD11A2_Gapfilled_Output\\LST_Night\\Output_Final_30k_2030pc\\*Data.tif";
-                outDir = "C:\\Temp\\TSModel";
+                //maskPath = "\\\\map-fs1.ndph.ox.ac.uk\\map_data\\mastergrids\\Global_Masks\\Land_Sea_Masks\\CoastGlobal.tiff";
+                //dayPath = "F:\\MOD11A2_Gapfilled_Output\\LST_Day\\Output_Final_30k_2030pc\\*Data.tif";
+                //nightPath = "F:\\MOD11A2_Gapfilled_Output\\LST_Night\\Output_Final_30k_2030pc\\*Data.tif";
+                //outDir = "C:\\Temp\\TSModel";
+                //maskValidValue = 1;
+
+                maskPath = "\\\\map-fs1.ndph.ox.ac.uk\\map_data\\mastergrids\\Global_Masks\\Land_Sea_Masks\\CoastGlobal_5k.tif";
+                dayPath = "G:\\tmp_local\\LST_Day_5km_8day\\*tif";
+                nightPath = "G:\\tmp_local\\LST_Night_5km_8day\\*.tif";
+                outDir = "C:\\Temp\\TSModel\\5km";
                 maskValidValue = 1;
+               
             }
 
             TSModelRunner runner = new TSModelRunner(new FilenameDateParser_MODIS8Day(), maskPath, dayPath, nightPath, outDir, maskValidValue);
@@ -50,10 +57,19 @@ namespace TempSuitability_CSharp
             Stopwatch sw = new Stopwatch();
             sw.Start();
             //runner.RunAllTiles(-18, 52, 38, -35, 512);
-            runner.RunAllTiles(8,14,6,0,512);
+            double e, w, n, s;
+            int size;
+            w = TS_Model_Run_Settings.Default.WestLim;
+            e = TS_Model_Run_Settings.Default.EastLim;
+            n = TS_Model_Run_Settings.Default.NorthLim;
+            s = TS_Model_Run_Settings.Default.SouthLim;
+            size = (int)TS_Model_Run_Settings.Default.TileSizePx;
+            runner.RunAllTiles(w, e, n, s, size);                                                                                                                                                               
+            //runner.RunAllTiles(13,14,6,5,512);
             sw.Stop();
             Console.WriteLine("Time elapsed running model = {0}", sw.Elapsed);
             Console.ReadKey();
+            
           
         }
         private TSModelRunner(IFilenameDateParser _parser, string maskPath, string dayPath, string nightPath, string outDir, int maskValidValue)
@@ -97,7 +113,8 @@ namespace TempSuitability_CSharp
             string runDir = WestDegrees.ToString() + "W-"
                             + EastDegrees.ToString() + "E-"
                             + NorthDegrees.ToString() + "N-"
-                            + SouthDegrees.ToString() + "S";
+                            + SouthDegrees.ToString() + "S-"
+                            + TileSize.ToString() +"px";
             //if (!System.IO.Directory.Exists(System.IO.Path.Combine(_outDir, runDir)))
             //{
             System.IO.Directory.CreateDirectory(System.IO.Path.Combine(_outDir, runDir));
@@ -191,7 +208,7 @@ namespace TempSuitability_CSharp
             float[][] tsOut = new float[numCells][];
             DateTime[] outputDates = null;
             ParallelOptions b = new ParallelOptions();
-          //  b.MaxDegreeOfParallelism = 1;
+           // b.MaxDegreeOfParallelism = 1;
 
             Parallel.For(0, numCells, b, c =>
             {

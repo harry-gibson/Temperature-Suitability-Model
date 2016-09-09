@@ -130,13 +130,22 @@ namespace TempSuitability_CSharp
             switch (modelType)
             {
                 case PopulationTypes.OOCohorts:
-                    m_Pop = new PopulationOO(lifespanSlices, sliceLengthDays, modelConfigParams.MinTempThreshold, modelConfigParams.DegreeDayThreshold);
+                    m_Pop = new PopulationOO(lifespanSlices, sliceLengthDays, 
+                        modelConfigParams.MinTempThreshold, 
+                        modelConfigParams.DegreeDayThreshold,
+                        modelConfigParams.MosquitoDeathTemperature);
                     break;
                 case PopulationTypes.Arrays:
-                    m_Pop = new PopulationArray(lifespanSlices, sliceLengthDays, modelConfigParams.MinTempThreshold, modelConfigParams.DegreeDayThreshold);
+                    m_Pop = new PopulationArray(lifespanSlices, sliceLengthDays, 
+                        modelConfigParams.MinTempThreshold, 
+                        modelConfigParams.DegreeDayThreshold,
+                        modelConfigParams.MosquitoDeathTemperature);
                     break;
                 case PopulationTypes.Pointers:
-                    m_Pop = new PopulationPtr(lifespanSlices, sliceLengthDays, modelConfigParams.MinTempThreshold, modelConfigParams.DegreeDayThreshold);
+                    m_Pop = new PopulationPtr(lifespanSlices, sliceLengthDays, 
+                        modelConfigParams.MinTempThreshold, 
+                        modelConfigParams.DegreeDayThreshold, 
+                        modelConfigParams.MosquitoDeathTemperature);
                     break;
             }
             
@@ -177,18 +186,19 @@ namespace TempSuitability_CSharp
 
             var startDay = m_InputTemperatureDates.First();
             List<double> validminTemps, validmaxTemps, validminDatePoints, validmaxDatePoints;
-            validminTemps = new List<double>();
-            validmaxTemps = new List<double>();
-            validmaxDatePoints = new List<double>();
-            validminDatePoints = new List<double>();
+            // we will create the lists at their max possible size and trim later rather than grow as needed,
+            // this is an attempt to fix a garbage collector crash that was occurring here in an old version of mono
+            validminTemps = new List<double>(nPoints);
+            validmaxTemps = new List<double>(nPoints);
+            validmaxDatePoints = new List<double>(nPoints);
+            validminDatePoints = new List<double>(nPoints);
             double minTemp, maxTemp;
-            
             // Only spline time / val pairs for valid temps, so first generate separate time list for max and min. 
             for (int i = 0; i<nPoints; i++)
             {
-                ConvertTemperature(LST_Day_Temps[i], LST_Night_Temps[i], TemperatureDatePoints[i].DayOfYear, out maxTemp, out minTemp);
                 if (LST_Night_Temps[i] != NoDataValue)
                 {
+                    ConvertTemperature(LST_Day_Temps[i], LST_Night_Temps[i], TemperatureDatePoints[i].DayOfYear, out maxTemp, out minTemp);
                     // min temp calculation only depends on the night temp
                     validminTemps.Add(minTemp);
                     // create a copy of the input image date as seconds since the first one, as the interpolator needs doubles not dates
@@ -219,7 +229,7 @@ namespace TempSuitability_CSharp
             m_PreviousSunsetTemp = validmaxTemps.First();
 
             // set the flag for whether the temperatures are _ever_ suitable for sporogenesis
-            if (validmaxTemps.Max() > modelParams.MinTempThreshold && validminTemps.Min() < modelParams.MosquitoDeathTemperature) {
+            if (validmaxTemps.Max() > modelParams.MinTempThreshold && validmaxTemps.Min() < modelParams.MosquitoDeathTemperature) {
                 // NB the Weiss code checked on the 1-daily splined temperature values for this; here we 
                 // are checking on the converted 8-daily input values. A spline can go outside the range of the 
                 // input data, so this doesn't necessarily give the same result in every case, but i think it's 
@@ -245,10 +255,6 @@ namespace TempSuitability_CSharp
             {
                 throw new InvalidOperationException("Data has not yet been loaded");
             }
-
-            var startDay = m_InputTemperatureDates.First();
-            var endDay = m_InputTemperatureDates.Last();
-            var mainRunStartDate = startDay + modelParams.MosquitoLifespanDays;
             if (!_PotentiallySuitableTemperature){
                 // IF the temperature never enters suitable range, return a new array (which will have the 
                 // default value of zero, i.e. no temperature suitability) andof the same length as the 
@@ -258,7 +264,10 @@ namespace TempSuitability_CSharp
                 int nMonths = OutputDates.Count();
                 return new float[nMonths] ;
             }
-            
+            var startDay = m_InputTemperatureDates.First();
+            var endDay = m_InputTemperatureDates.Last();
+            var mainRunStartDate = startDay + modelParams.MosquitoLifespanDays;
+
             TimeSpan oneDay = new TimeSpan(1, 0, 0, 0, 0);
             double sliceLengthDays = modelParams.SliceLength.TotalDays;
             int slicesPerDay = (int)(1.0 / sliceLengthDays);
@@ -435,7 +444,7 @@ namespace TempSuitability_CSharp
         {
             return new Tuple<double, double>(
                 GetSunriseOrSunsetTime(JulianDay, SunriseOrSunset.Sunrise),
-                GetSunriseOrSunsetTime(JulianDay, SunriseOrSunset.Sunrise));
+                GetSunriseOrSunsetTime(JulianDay, SunriseOrSunset.Sunset));
         }
 
         /// <summary>
