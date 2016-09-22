@@ -64,7 +64,10 @@ namespace TempSuitability_CSharp
             m_FileWildCard = FilepathWildcard;
             m_FilenameDateParser = FilenameDateParserObject;
             PopulateFilenamesAndDates();
-            PopulateRasterProperties();
+            if (m_FileDates.Count > 0)
+            {
+                PopulateRasterProperties();
+            }
         }
         
         public double[] GetSubsetLongitudeCoords(int xOffset, int xSize)
@@ -268,8 +271,7 @@ namespace TempSuitability_CSharp
         {
             string _dir = System.IO.Path.GetDirectoryName(m_FileWildCard);
             string _fnPattern = System.IO.Path.GetFileName(m_FileWildCard);
-            System.Console.WriteLine("Looking for files in " + m_FileWildCard);
-
+         
             string[] _files = System.IO.Directory.GetFiles(_dir, _fnPattern);
             m_FileDates = new SortedList<DateTime,string> (_files
                 .Select(fn => new KeyValuePair<DateTime?, string>(m_FilenameDateParser.TryParseFilenameDate(fn), fn))

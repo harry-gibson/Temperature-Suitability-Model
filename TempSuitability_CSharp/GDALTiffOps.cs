@@ -244,6 +244,8 @@ namespace TempSuitability_CSharp
                 }
             }
             ds.Dispose();
+            ds = null;
+            System.GC.Collect();
             return buffer;
         }
 

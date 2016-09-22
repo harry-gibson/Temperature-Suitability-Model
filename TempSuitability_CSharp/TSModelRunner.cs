@@ -25,11 +25,11 @@ namespace TempSuitability_CSharp
             string maskPath, dayPath, nightPath, outDir;
             int maskValidValue;
             try {
-                maskPath = TS_Model_Run_Settings.Default.LS_Mask_File;
-                dayPath = TS_Model_Run_Settings.Default.LST_Day_Files;
-                nightPath = TS_Model_Run_Settings.Default.LST_Night_Files;
-                outDir = TS_Model_Run_Settings.Default.OutputFolder;
-                maskValidValue = TS_Model_Run_Settings.Default.MaskValidValue;
+                maskPath = Properties.Settings.Default.LS_Mask_File;
+                dayPath = Properties.Settings.Default.LST_Day_Files;
+                nightPath = Properties.Settings.Default.LST_Night_Files;
+                outDir = Properties.Settings.Default.OutputFolder;
+                maskValidValue = Properties.Settings.Default.MaskValidValue;
                 /* args:  "\\map-fs1.ndph.ox.ac.uk\map_data\mastergrids\Global_Masks\Land_Sea_Masks\CoastGlobal_5k.tif" 
                 "\\map-fs1.ndph.ox.ac.uk\map_data\mastergrids\MODIS_Global\MOD11A2_LST\LST_Day\5km\8-Daily\*Max.tif" 
                 "\\map-fs1.ndph.ox.ac.uk\map_data\mastergrids\MODIS_Global\MOD11A2_LST\LST_Night\5km\8-Daily\*Min.tif"
@@ -59,11 +59,11 @@ namespace TempSuitability_CSharp
             //runner.RunAllTiles(-18, 52, 38, -35, 512);
             double e, w, n, s;
             int size;
-            w = TS_Model_Run_Settings.Default.WestLim;
-            e = TS_Model_Run_Settings.Default.EastLim;
-            n = TS_Model_Run_Settings.Default.NorthLim;
-            s = TS_Model_Run_Settings.Default.SouthLim;
-            size = (int)TS_Model_Run_Settings.Default.TileSizePx;
+            w = Properties.Settings.Default.WestLim;
+            e = Properties.Settings.Default.EastLim;
+            n = Properties.Settings.Default.NorthLim;
+            s = Properties.Settings.Default.SouthLim;
+            size = (int)Properties.Settings.Default.TileSizePx;
             runner.RunAllTiles(w, e, n, s, size);                                                                                                                                                               
             //runner.RunAllTiles(13,14,6,5,512);
             sw.Stop();
@@ -75,8 +75,22 @@ namespace TempSuitability_CSharp
         private TSModelRunner(IFilenameDateParser _parser, string maskPath, string dayPath, string nightPath, string outDir, int maskValidValue)
         {
             _fnParser = _parser;
+            //System.Console.WriteLine("Looking for files in " + m_FileWildCard);
+            //var d = new System.Diagnostics.DefaultTraceListener();
             _maxReader = new TiffCubeReader(dayPath, _fnParser);
+            var nMax = _maxReader.Filenames.Count;
+            System.Console.WriteLine("Looking for LST Day files in " + dayPath + 
+                " - found "+ nMax.ToString());
             _minReader = new TiffCubeReader(nightPath, _fnParser);
+            var nMin = _minReader.Filenames.Count;
+            System.Console.WriteLine("Looking for LST Night files in " + nightPath +
+                " - found " + nMin.ToString());
+
+            if (nMax == 0 || nMin == 0)
+            {
+                throw new ArgumentException("Can't continue without data");
+                // I don't see any reason not to continue if the numbers for day and night aren't actually equal
+            }
             if (!_maxReader.GeoTransform.SequenceEqual(_minReader.GeoTransform))
             {
                 throw new ArgumentException("Day and night image transforms do not match!");
@@ -115,6 +129,7 @@ namespace TempSuitability_CSharp
                             + NorthDegrees.ToString() + "N-"
                             + SouthDegrees.ToString() + "S-"
                             + TileSize.ToString() +"px";
+            System.Console.WriteLine("Initiating run of  " + (nTilesX * nTilesY).ToString() + " tiles");
             //if (!System.IO.Directory.Exists(System.IO.Path.Combine(_outDir, runDir)))
             //{
             System.IO.Directory.CreateDirectory(System.IO.Path.Combine(_outDir, runDir));
@@ -124,12 +139,15 @@ namespace TempSuitability_CSharp
                 int yOff = (int) pxOverall.NorthPixelCoord + tileRow * TileSize;
                 int yEnd = yOff + TileSize;
                 int thisTileYSize = TileSize;
+           
                 if (yEnd > pxOverall.SouthPixelCoord)
                 {
                     thisTileYSize = (int) pxOverall.SouthPixelCoord - yOff;
                 }
                 for (int tileCol = 0; tileCol < nTilesX; tileCol++)
                 {
+                    var tileNum = tileRow * nTilesX + tileCol + 1;
+
                     int xOff = (int) pxOverall.WestPixelCoord + tileCol * TileSize;
                     int xEnd = xOff + TileSize;
                     int thisTileXSize = TileSize;
@@ -143,8 +161,10 @@ namespace TempSuitability_CSharp
                     if (cellRes.Length == 0)
                     {
                         // whole tile was in masked / sea area. Do not bother to write output.
+                        System.Console.WriteLine("Tile "+tileNum.ToString() +" was wholly in sea - skipped");
                         continue;
                     }
+                    System.Console.WriteLine("Tile computation completed, writing output");
                     var tileRes = TransposeCellData(
                         cellRes,
                         thisTileXSize, thisTileYSize);
@@ -159,6 +179,7 @@ namespace TempSuitability_CSharp
                         string outFile = System.IO.Path.Combine(_outDir, runDir, fn);
                         GDAL_Operations.WriteWholeTiff(outFile, tData, tileGT, tileProj, tileLims, true, _maxReader.NoDataValue);
                     }
+                    System.Console.WriteLine("Tile " + tileNum.ToString() + " finished - wrote "+tileRes.Length.ToString()+" files");
                 }
             }
         }
@@ -170,6 +191,7 @@ namespace TempSuitability_CSharp
         /// is an array with length zero.
         /// Otherwise, each value is an array with one TS value for each month of the run period, 
         /// EXCEPT if the cell is in the sea / masked area, in which case it is an array of length 0.
+        /// Each cell location is done independently and this is therefore multithreaded.
         /// </summary>
         /// <param name="xOff"></param>
         /// <param name="yOff"></param>
@@ -196,22 +218,32 @@ namespace TempSuitability_CSharp
             int numCells = xSize * ySize;
             Debug.Assert(nightData.Length == dayData.Length);
             Debug.Assert(dayData.Length == numCells);
-            
+
+            // get the model parameters from the default settings file
+            var set = Properties.Settings.Default;
             PopulationParams popParams = new PopulationParams();
-            popParams.DegreeDayThreshold = 111;
-            popParams.MinTempThreshold = 16;
-            popParams.MosquitoDeathTemperature = 40.0;
-            popParams.MosquitoLifespanDays = new TimeSpan(31, 0, 0, 0); ;
-            popParams.SliceLength = new TimeSpan(2, 0, 0);
-            popParams.MaxTempSuitability = 34.2467; // 33.89401 was in Weiss code, not sure how generated. I got this using iterative solver.
+            popParams.DegreeDayThreshold = set.ParamSporogDegreeDays;
+            popParams.MinTempThreshold = set.ParamMinTempThreshCelsius;
+            popParams.MosquitoDeathTemperature = set.ParamDeathTempCelsius; ;
+            popParams.MosquitoLifespanDays = new TimeSpan((int)set.ParamLifespanDays, 0, 0, 0); ;
+            popParams.SliceLength = new TimeSpan((int)set.ParamSliceLengthHours, 0, 0);
+            popParams.MaxTempSuitability = set.ParamMaxTSNormaliser;
+            // max ts for default settings is 34.2467; the Weiss code had 33.89401 , not sure how generated. 
+            // I got this using iterative solver in excel.
+            System.Console.WriteLine("Tile data loaded, computation beginning");
 
             float[][] tsOut = new float[numCells][];
             DateTime[] outputDates = null;
             ParallelOptions b = new ParallelOptions();
-           // b.MaxDegreeOfParallelism = 1;
+            if (set.MaxThreads != 0)
+            {
+                // set threads to 1 for easier step-through debugging or some other number to not hog the whole machine
+                b.MaxDegreeOfParallelism = (int)set.MaxThreads;
+            }
 
             Parallel.For(0, numCells, b, c =>
             {
+                
                 if (lsMask[c] != 1)
                 {
                     // this cell is in the sea, no need to run, return as a special case a zero length result array
@@ -225,7 +257,12 @@ namespace TempSuitability_CSharp
 
                 //geogParams.ModelRuntimeDays = nDays;
                 //geogParams.StartJulianDay = 0;
-                if (dayData[c].Count(v => v != _maxReader.NoDataValue) < nFiles / 2)
+                
+                // run only if we've got at least 50% of the data and 100+ points
+                var nValid = Math.Min(
+                    dayData[c].Count(v => v != _maxReader.NoDataValue),
+                    nightData[c].Count(v => v != _minReader.NoDataValue));
+                if (nValid < nFiles / 2 || nValid < 100)
                 {
                     tsOut[c] = new float[0];
                 }
@@ -239,11 +276,7 @@ namespace TempSuitability_CSharp
                     // run the entire ts model for this location
                     float[] tsCell = tsModel.RunModel();
                     int nOutputPoints = tsCell.Length;
-                    tsOut[c] = new float[nOutputPoints];
-                    for (int i = 0; i < nOutputPoints; i++)
-                    {
-                        tsOut[c][i] = tsCell[i];
-                    }
+                    tsOut[c] = tsCell;
                     lock (_lockobj) // ensure only 1 thread makes this check 
                     {
                         // calculate and record the dates of the outputs for an arbitrary one of the cell models
@@ -291,6 +324,7 @@ namespace TempSuitability_CSharp
                 tileArr[b] = new float[nCells];
             }
             int cellNum;
+            
             for (int y = 0; y < ySize; y++)
             {
                 for (int x = 0; x < xSize; x++)
@@ -316,5 +350,8 @@ namespace TempSuitability_CSharp
             }
             return tileArr;
         }
+        
+
     }
+    
 }

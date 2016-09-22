@@ -98,6 +98,11 @@
     <Compile Include="GdalConfiguration.cs" />
     <Compile Include="GDALTiffOps.cs" />
     <Compile Include="PopulationParams.cs" />
+    <Compile Include="Properties\Settings.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+      <DependentUpon>Settings.settings</DependentUpon>
+    </Compile>
     <Compile Include="TempSuitabilityModelTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Test_GDAL_Reader.cs" />
@@ -107,10 +112,16 @@
     <Compile Include="TSModelRunner.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="App.config" />
+    <None Include="app.config">
+      <SubType>Designer</SubType>
+    </None>
     <None Include="ImplementationNotes.md" />
     <None Include="Memory_Notes.md" />
     <None Include="packages.config" />
+    <None Include="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
     <None Include="README.md" />
   </ItemGroup>
   <ItemGroup>
