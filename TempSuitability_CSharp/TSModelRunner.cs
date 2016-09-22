@@ -116,6 +116,16 @@ namespace TempSuitability_CSharp
             _outDir = outDir;
             _maskValidValue = maskValidValue;
         }
+
+        /// <summary>
+        /// Runs TS model for all cells of all tiles required to cover the given bounding box at the given tile size.
+        /// Any tile wholly in the sea will be skipped (no output files generated)
+        /// </summary>
+        /// <param name="WestDegrees"></param>
+        /// <param name="EastDegrees"></param>
+        /// <param name="NorthDegrees"></param>
+        /// <param name="SouthDegrees"></param>
+        /// <param name="TileSize"></param>
         public void RunAllTiles(double WestDegrees, double EastDegrees, double NorthDegrees, double SouthDegrees, int TileSize)
         {
             var globalGT = _maxReader.GeoTransform;
@@ -130,10 +140,7 @@ namespace TempSuitability_CSharp
                             + SouthDegrees.ToString() + "S-"
                             + TileSize.ToString() +"px";
             System.Console.WriteLine("Initiating run of  " + (nTilesX * nTilesY).ToString() + " tiles");
-            //if (!System.IO.Directory.Exists(System.IO.Path.Combine(_outDir, runDir)))
-            //{
             System.IO.Directory.CreateDirectory(System.IO.Path.Combine(_outDir, runDir));
-            //}
             for (int tileRow = 0; tileRow < nTilesY; tileRow++)
             {
                 int yOff = (int) pxOverall.NorthPixelCoord + tileRow * TileSize;

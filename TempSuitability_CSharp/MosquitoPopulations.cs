@@ -8,6 +8,21 @@ using System.Runtime.CompilerServices;
 namespace TempSuitability_CSharp
 {
     /// <summary>
+    /// Classes implementing this interface represent a population of mosquitoes at a cell,
+    ///  which comprises a number of cohorts (the mosquitoes born in a single timeslice) - 
+    /// one cohort for each timeslice in the lifespan of a mosquito. The population can 
+    /// be iterated (moved forward by a timestep) to run the temperature suitability model. 
+    /// Interface allows for different underlying implementations of the population to test performance 
+    /// of different approaches.
+    /// </summary>
+    interface IIterablePopulation
+    {
+        bool IsInitialised { get; }
+        void Initialise(double[] DailyLifetimeTemps);
+        double Iterate(double DailyMinTemp);
+    }
+
+    /// <summary>
     /// A Cohort is the smallest tracked unit of mosquito population. Each cohort tracks 
     /// its infectiousness and surviving proportion of mosquitoes, based on the temperatures 
     /// it has been subjected to.
@@ -81,24 +96,10 @@ namespace TempSuitability_CSharp
         }
         #endregion
     }
-
+    
     /// <summary>
-    /// Interface defines a Population (of mosquitoes at a cell) which comprises a number of cohorts (the mosquitoes 
-    /// born in a single timeslice) - one cohort for each timeslice in the lifespan of a mosquito. The population can 
-    /// be iterated (moved forward by a timestep) to run the temperature suitability model. 
-    /// Interface allows for different underlying implementations of the population to test performance 
-    /// of different approaches.
-    /// </summary>
-    interface IIterablePopulation
-    {
-        bool IsInitialised { get; }
-        void Initialise(double[] DailyLifetimeTemps);
-        double Iterate(double DailyMinTemp);
-    }
-
-    /// <summary>
-    /// Implements a mosquito population at a cell using a normal OO approach including 
-    /// C# collection types (Queue) and a new type Cohort. 
+    /// Implements a mosquito population at a cell using a normal OO approach based on 
+    /// C# collection types (Queue) of a new type Cohort. 
     /// This is quite slow so not used in production but the code was written this way originally.
     /// </summary>
     class PopulationOO : IIterablePopulation
@@ -207,9 +208,14 @@ namespace TempSuitability_CSharp
     }
 
     /// <summary>
-    /// Implements a mosquito population at a cell using basic array types, as opposed to Queue and Cohort.
+    /// Implements a mosquito population at a cell using basic array types, as opposed to Queue and Cohort, 
+    /// for improved performance.
+    /// The population is simply represented by two parallel arrays,
+    /// one to track the contribution of all living cohorts and one to track the number of degree-days they
+    /// have each been exposed to. We maintain a property to track which is the "oldest" which moves forwards 
+    /// at each iteration
     /// </summary>
-    class PopulationArray:IIterablePopulation
+    class PopulationArray :IIterablePopulation
     {
         private double[] m_Contribs;
         private double[] m_DegDays;
@@ -325,25 +331,17 @@ namespace TempSuitability_CSharp
 
             return tsAtSlice;
         }
-
-        /// <summary>
-        /// The fraction surviving is the same for all cohorts as it only depends on temperature, so we 
-        /// calculate it once at each timeslice for the whole population
-        /// </summary>
-        /// <param name="minTemp"></param>
-        /// <returns></returns>
-        //private double GetSurvivingFraction(double minTemp)
-        //{
-        //    return Math.Pow(
-        //      (Math.Exp(-1 / (-4.4 + (1.31 * minTemp) - (0.03 * (Math.Pow(minTemp, 2)))))),
-        //      (m_SliceLengthDays));
-        //}
     }
 
     /// <summary>
-    /// Implements a mosquito population at a cell using pointer types, as opposed to Queue and Cohort. 
+    /// Implements a mosquito population at a cell using pointer types, as opposed to Queue and Cohort, 
+    /// or native array types.
     /// Due to the tightness of the Iterate loop this is substantially the fastest implementation.
     /// (The iterate loop runs 372 * 12 * 365 * 17 times at every pixel location!) 
+    /// The population is simply represented by two parallel arrays (which we will access via pointers),
+    /// one to track the contribution of all living cohorts and one to track the number of degree-days they
+    /// have each been exposed to. We maintain a property to track which is the "oldest" which moves forwards 
+    /// at each iteration
     /// </summary>
     class PopulationPtr : IIterablePopulation
     {
@@ -366,7 +364,6 @@ namespace TempSuitability_CSharp
             m_TempThreshold = TempThreshold;
             m_UpperTempLimit = DeathAboveTemperature;
             IsInitialised = false;
-            // Create the population "queue" with length of one lifespan 
         }
 
         /// <summary>
@@ -380,7 +377,7 @@ namespace TempSuitability_CSharp
             {
                 throw new ArgumentException("Population must be initialised with one temp for each slice in a lifespan");
             }
-
+            // initialise the population arrays (all values will be set to 0)
             m_Contribs = new double[m_LifespanSlices];
             m_DegDays = new double[m_LifespanSlices];
             double[] localContribs = m_Contribs;
@@ -388,17 +385,18 @@ namespace TempSuitability_CSharp
 
             for (int i = 0; i < m_LifespanSlices; i++)
             {
-
                 double minTemp = SpinUpTemps[i];
                 double survivalRate = MossieMethods.GetSurvivingFraction(minTemp, m_SliceLengthDays, m_UpperTempLimit);
                 double degreeDays = Math.Max(((minTemp - m_TempThreshold) * m_SliceLengthDays), 0);
 
+                // decrease all the living cohorts by the survival fraction and 
                 // we don't care what the actual result of the sum is at this point
                 for (int cohPos = 0; cohPos < i; cohPos++)
                 {
                     localContribs[cohPos] *= survivalRate;
                     localDegDays[i] += degreeDays;
                 }
+                // "hatch" the next cohort
                 localContribs[i] = 1;
                 localDegDays[i] = 0;
             }
@@ -444,7 +442,7 @@ namespace TempSuitability_CSharp
             double[] localContribs = m_Contribs;
             double[] localDegDays = m_DegDays;
             double localThreshold = m_InfectionThreshold;
-            int count = localContribs.Length;
+            int count = m_LifespanSlices;
             fixed (double* pContribs = localContribs, pDegDays = localDegDays)
             {
                 double* pContrib = pContribs, pDegDay = pDegDays;
@@ -467,7 +465,7 @@ namespace TempSuitability_CSharp
                     pDegDay++;
                 }
             }
-            // spawn a new one 
+            // spawn a new one (replacing the previous value at this position, the cohort which is now dead)
             localContribs[m_NextToDie] = 1;
             localDegDays[m_NextToDie] = 0;
             // copy local variables back to field
