@@ -278,19 +278,19 @@ namespace TempSuitability_CSharp
                     else
                     {
                         TSCellModel tsModel = new TSCellModel(popParams, geogParams, PopulationTypes.Pointers);
-                        var dd = dayData[c];
-                        var nd = nightData[c];
-                        float optimal = 28.6857194664029F;
-                        for (int i = 0; i < 727; i++) {
-                            dd[i] = optimal;
-                            if (i%3==0) { dd[i] = 43; }
-                            nd[i] = optimal; }
-                        tsModel.SetData(dd, nd, dates, _maxReader.NoDataValue.Value, false);
+                       // var dd = dayData[c];
+                       // var nd = nightData[c];
+                       // float optimal = 28.6857194664029F;
+                       // for (int i = 0; i < 727; i++) {
+                       //     dd[i] = optimal;
+            //                if (i%3==0) { dd[i] = 43; }
+                       //     nd[i] = optimal; }
+                        //tsModel.SetData(dd, nd, dates, _maxReader.NoDataValue.Value, false);
 
-                        //if (!tsModel.SetData(dayData[c], nightData[c], dates, _maxReader.NoDataValue.Value, false))
-                        //{
-                        //    throw new ApplicationException("Pop goes the weasel");
-                        //};
+                        if (!tsModel.SetData(dayData[c], nightData[c], dates, _maxReader.NoDataValue.Value, true))
+                        {
+                            throw new ApplicationException("Pop goes the weasel");
+                        };
                         // run the entire ts model for this location
                         float[] tsCell = tsModel.RunModel();
                         int nOutputPoints = tsCell.Length;
