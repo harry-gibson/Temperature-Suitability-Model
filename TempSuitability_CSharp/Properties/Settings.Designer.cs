@@ -52,7 +52,7 @@ namespace TempSuitability_CSharp.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("12.8")]
+        [global::System.Configuration.DefaultSettingValueAttribute("12")]
         public double WestLim {
             get {
                 return ((double)(this["WestLim"]));
@@ -61,7 +61,7 @@ namespace TempSuitability_CSharp.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("12.9")]
+        [global::System.Configuration.DefaultSettingValueAttribute("15")]
         public double EastLim {
             get {
                 return ((double)(this["EastLim"]));
@@ -70,7 +70,7 @@ namespace TempSuitability_CSharp.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("22.8")]
+        [global::System.Configuration.DefaultSettingValueAttribute("24")]
         public double NorthLim {
             get {
                 return ((double)(this["NorthLim"]));
@@ -79,7 +79,7 @@ namespace TempSuitability_CSharp.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("22.7")]
+        [global::System.Configuration.DefaultSettingValueAttribute("21")]
         public double SouthLim {
             get {
                 return ((double)(this["SouthLim"]));

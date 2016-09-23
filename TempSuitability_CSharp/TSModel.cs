@@ -9,34 +9,6 @@ using MathNet.Numerics.Interpolation;
 namespace TempSuitability_CSharp
 {
     
-
-    /// <summary>
-    /// Basic struct to pass TS model parameters relating to model setup for a particular cell
-    /// </summary>
-    struct SpatioTemporalParams
-    {
-        public double Latitude { get;  set; }
-        public double Longitude { get;  set; }
-    }
-
-    /// <summary>
-    /// enum representing the classes currently known to implement IIterablePopulation
-    /// </summary>
-    enum PopulationTypes
-    {
-        /// <summary>
-        /// A population that is represented by a linq Queue structure: most C#-ish but slow
-        /// </summary>
-        OOCohorts,
-        /// <summary>
-        /// A population that is represented by a series of arrays
-        /// </summary>
-        Arrays,
-        /// <summary>
-        /// A population that is represented by a series of arrays with pointer access
-        /// </summary>
-        Pointers
-    }
     
     /// <summary>
     /// Class to run the temperature suitability model for a given cell (location), for the entire time period. 
@@ -45,7 +17,7 @@ namespace TempSuitability_CSharp
     {
         #region Fields
         private readonly PopulationParams modelParams;
-        private readonly SpatioTemporalParams locationParams;
+        private readonly GeographicCell modelLocation;
         private IIterablePopulation m_Pop;
 
         private DateTime[] m_InputTemperatureDates;
@@ -111,12 +83,12 @@ namespace TempSuitability_CSharp
         /// is currently specified by the PopulationTypes enum. After construction, call SetData before calling RunModel.
         /// </summary>
         /// <param name="modelConfigParams"></param>
-        /// <param name="spacetimeParams"></param>
+        /// <param name="locationParams"></param>
         /// <param name="modelType"></param>
-        public TSCellModel(PopulationParams modelConfigParams, SpatioTemporalParams spacetimeParams, PopulationTypes modelType)
+        public TSCellModel(PopulationParams modelConfigParams, GeographicCellLocation locationParams, PopulationTypes modelType)
         {
             this.modelParams = modelConfigParams;
-            this.locationParams = spacetimeParams;
+            this.modelLocation = new GeographicCell(locationParams);
             double sliceLengthDays = modelParams.SliceLength.TotalDays;
             int lifespanSlices = modelConfigParams.LifespanSlices;
             switch (modelType)
@@ -285,7 +257,7 @@ namespace TempSuitability_CSharp
                 maxAirTemp = maxSpline.Interpolate(secondsSinceStart);
                 minAirTemp = minSpline.Interpolate(secondsSinceStart);
                 int julianDay = currentDay.DayOfYear;
-                Tuple<double, double> sunriseSunset = GetSunriseSunsetTimes(julianDay);
+                Tuple<double, double> sunriseSunset = modelLocation.GetSunriseSunsetTimes(julianDay);
                 for (TimeSpan daySlice = new TimeSpan(0); daySlice < oneDay; daySlice += modelParams.SliceLength)
                 {
                     double currentTemp = InterpolateHourlyTemperature(daySlice.Hours, sunriseSunset.Item1, sunriseSunset.Item2, minAirTemp, maxAirTemp);
@@ -354,7 +326,7 @@ namespace TempSuitability_CSharp
                 maxAirTemp = maxSpline.Interpolate(secondsSinceStart);
                 minAirTemp = minSpline.Interpolate(secondsSinceStart);
                 int julianDay = currentDay.DayOfYear;
-                Tuple<double, double> sunriseSunset = GetSunriseSunsetTimes(julianDay);
+                Tuple<double, double> sunriseSunset = modelLocation.GetSunriseSunsetTimes(julianDay);
                 for(TimeSpan daySlice = new TimeSpan(0); daySlice < oneDay; daySlice += modelParams.SliceLength)
                 {
                     double currentTemp = InterpolateHourlyTemperature(daySlice.Hours, sunriseSunset.Item1, sunriseSunset.Item2, minAirTemp, maxAirTemp);
@@ -381,7 +353,7 @@ namespace TempSuitability_CSharp
                 maxAirTemp = maxSpline.Interpolate(secondsSinceStart);
                 minAirTemp = minSpline.Interpolate(secondsSinceStart);
                 int julianDay = currentDay.DayOfYear;
-                Tuple<double, double> sunriseSunset = GetSunriseSunsetTimes(julianDay);
+                Tuple<double, double> sunriseSunset = modelLocation.GetSunriseSunsetTimes(julianDay);
                 // go through each e.g. 12 slices of this day
                 for (TimeSpan daySlice = new TimeSpan(0); daySlice < oneDay; daySlice += modelParams.SliceLength)
                 {
@@ -415,108 +387,7 @@ namespace TempSuitability_CSharp
             return results.Values.Select(d => (float)d).ToArray();
         }
         
-        private enum SunriseOrSunset
-        {
-            Sunrise,
-            Sunset
-        }
-
-        /// <summary>
-        /// Implementation of the algorithm at http://williams.best.vwh.net/sunrise_sunset_algorithm.htm
-        /// </summary>
-        /// <param name="JulianDay"></param>
-        /// <param name="which"></param>
-        /// <returns>double representing the hour of sunrise or sunset, according to which was requested.
-        /// A value of -9999 is returned if the sun never rises or sets on this day.</returns>
-        private double GetSunriseOrSunsetTime(int JulianDay, SunriseOrSunset which, double? lonDegrees, double? latDegrees )
-        {
-            double lat, lon;
-            lat = latDegrees.HasValue ? latDegrees.Value : locationParams.Latitude;
-            lon = lonDegrees.HasValue ? lonDegrees.Value : locationParams.Longitude;
-
-            double longitude_hr = lon / 15;
-            const double Zenith = 90.8333;
-            double degConv = Math.PI / 180;
-
-            double timeInit;
-            switch (which)
-            {
-                case SunriseOrSunset.Sunrise:
-                    timeInit = JulianDay + ((6 - longitude_hr) / 24);
-                    break;
-                case SunriseOrSunset.Sunset:
-                    timeInit = JulianDay + ((18 - longitude_hr) / 24);
-                    break;
-                default:
-                    throw new ArgumentException();
-            }
-            double meanAnom = (0.9856 * timeInit) - 3.289;
-
-            double sunLong = meanAnom +
-                (1.916 * Math.Sin(meanAnom * degConv)) +
-                (0.020 * Math.Sin(2 * meanAnom * degConv)) +
-                282.634;
-            sunLong = (sunLong + 360) % 360;
-
-            double rightAscension = (180 / Math.PI) *
-                Math.Atan(0.91764 * Math.Tan(sunLong * degConv));
-            rightAscension = (rightAscension + 360) % 360;
-            double l_quadrant = (Math.Floor(sunLong / 90)) * 90;
-            double ra_quadrant = (Math.Floor(rightAscension / 90)) * 90;
-            rightAscension += (l_quadrant - ra_quadrant);
-            rightAscension /= 15;
-
-            double sinDecl = 0.39782 * Math.Sin(sunLong * degConv);
-            
-            double cosDecl = Math.Cos((Math.Asin(sinDecl) * 180 / Math.PI) * degConv);
-
-            double sunHourAngle = (Math.Cos(Zenith * degConv) -
-                (sinDecl * Math.Sin(lat * degConv))) /
-                (cosDecl * Math.Cos(lat * degConv));
-
-            if (sunHourAngle > 1 || sunHourAngle < -1)
-            {
-                return -9999;
-            }
-            double time; 
-            switch (which)
-            {
-                case SunriseOrSunset.Sunrise:
-                    time = 360 - Math.Acos(sunHourAngle) * 180 / Math.PI;
-                    break;
-                case SunriseOrSunset.Sunset:
-                    time = Math.Acos(sunHourAngle) * 180 / Math.PI;
-                    break;
-                default:
-                    throw new ArgumentException();
-            }
-            time /= 15;
-            time = time + rightAscension - (0.06571 * timeInit) - 6.622;
-            time = time - longitude_hr;
-            if (time > 24)
-            {
-                time -= 24;
-            }
-            else if (time < 0)
-            {
-                time += 24;
-            }
-            return time;
-        }
-
-        /// <summary>
-        /// Calculates sunrise and sunset times at the current location for a given day of the year
-        /// </summary>
-        /// <param name="JulianDay"></param>
-        /// <returns>2-Tuple containing the sunrise and sunset times for this Julian day.
-        /// A value of -9999 is returned if the sun never rises or sets on this day.</returns>
-        private Tuple<double, double> GetSunriseSunsetTimes(int JulianDay)
-        {
-            return new Tuple<double, double>(
-                GetSunriseOrSunsetTime(JulianDay, SunriseOrSunset.Sunrise, null, null),
-                GetSunriseOrSunsetTime(JulianDay, SunriseOrSunset.Sunset, null, null));
-        }
-
+   
         /// <summary>
         /// Estimates max and min daily air temperature from the daytime and nighttime land surface temperatures, according 
         /// to the models published in Weiss et al. 2014. The calculation for max temperature takes account of the length of the day,
@@ -531,32 +402,11 @@ namespace TempSuitability_CSharp
         {
             double LST_Diff = LST_Day_Temp - LST_Night_Temp;
             MinTemp = 0.209087 + 0.970841 * LST_Night_Temp;
-            var dayHrs = CalcDaylightHrsForsyth(JulianDay, null);
+            var dayHrs = modelLocation.CalcDaylightHrsForsyth(JulianDay);
             MaxTemp = 18.148887 + LST_Day_Temp* 0.949445 + (LST_Diff * -0.541052) +
                 (dayHrs * -0.865620);
         }
          
-        /// <summary>
-        /// Calculates the approximate number of daylight hours on the given day of the year at the current location.
-        /// Calculated according to the "CBD" model published in:
-        /// Forsythe et al. (1995) A model comparison for daylength as a function of latitude and day of year.  
-        /// Ecological Modeling 80(1) pp. 87-95
-        /// </summary>
-        /// <param name="JulianDay"></param>
-        /// <returns></returns>
-        private double CalcDaylightHrsForsyth(int JulianDay, double? latDegrees)
-        {
-            double lat = latDegrees.HasValue ? latDegrees.Value : locationParams.Latitude;
-           
-            const double daylengthCoefficient = 0.8333;
-            var theta = 0.2163108 + 2 * Math.Atan(0.9671396 * Math.Tan(0.00860 * (JulianDay - 186)));
-            var phi = Math.Asin(0.39795 * Math.Cos(theta));
-            var hrs = 24 - (24 / Math.PI) * Math.Acos(
-                (Math.Sin(daylengthCoefficient* Math.PI / 180) + Math.Sin(lat * Math.PI / 180) * Math.Sin(phi)) 
-                /
-                (Math.Cos(lat * Math.PI / 180) * Math.Cos(phi)));
-            return hrs;
-        }
         
         /// <summary>
         /// Estimates the temperature at a given hour of the day based on the daily max / min temperatures and the time 

@@ -46,7 +46,7 @@ namespace TempSuitability_CSharp
                 Array.Copy(tMins, startIdx, tMinsForCell, 0, nDays);
                 Array.Copy(tMaxs, startIdx, tMaxsForCell, 0, nDays);
 
-                SpatioTemporalParams geogParams = new SpatioTemporalParams();
+                GeographicCellLocation geogParams = new GeographicCellLocation();
                 geogParams.Latitude = tLats[c];
                 geogParams.Longitude = tLongs[c];
                 
@@ -88,7 +88,7 @@ namespace TempSuitability_CSharp
             {
                 int rownum = c / numCols;
                 int colnum = c % numCols;
-                SpatioTemporalParams geogParams = new SpatioTemporalParams();
+                GeographicCellLocation geogParams = new GeographicCellLocation();
                 geogParams.Latitude = latitudes[rownum];
                 geogParams.Longitude = longitudes[colnum];
 
@@ -140,7 +140,7 @@ namespace TempSuitability_CSharp
                     Array.Copy(tMins, startIdx, tMinsForCell, 0, nDays);
                     Array.Copy(tMaxs, startIdx, tMaxsForCell, 0, nDays);
 
-                    SpatioTemporalParams geogParams = new SpatioTemporalParams();
+                    GeographicCellLocation geogParams = new GeographicCellLocation();
                     geogParams.Latitude = tLats[c];
                     geogParams.Longitude = tLongs[c];
                 
