@@ -267,7 +267,7 @@ namespace TempSuitability_CSharp
                 for (int cohPos = 0; cohPos < i; cohPos++)
                 {
                     localContribs[cohPos] *= survivalRate;
-                    localDegDays[i] += degreeDays;
+                    localDegDays[cohPos] += degreeDays;
                 }
                 localContribs[i] = 1;
                 localDegDays[i] = 0;
@@ -394,7 +394,7 @@ namespace TempSuitability_CSharp
                 for (int cohPos = 0; cohPos < i; cohPos++)
                 {
                     localContribs[cohPos] *= survivalRate;
-                    localDegDays[i] += degreeDays;
+                    localDegDays[cohPos] += degreeDays;
                 }
                 // "hatch" the next cohort
                 localContribs[i] = 1;
@@ -409,28 +409,30 @@ namespace TempSuitability_CSharp
         /// Move the population forward by one timeslice. 
         /// 
         /// Applies the minimum temperature to all living cohorts, and returns the summarised TS contribution 
-        /// of those cohorts, calculated before 
-        /// the cohorts are themselves iterated to decay according to the temperature they're subjected 
-        /// to. Dead cohort is removed and a new cohort is hatched.
+        /// of those cohorts, calculated BEFORE the cohorts are themselves iterated to decay according to 
+        /// the temperature they're subjected to. 
+        /// The oldest (dead) cohort is then removed and a new cohort is hatched.
         /// </summary>
-        /// <param name="minTemp"></param>
+        /// <param name="SliceTemp"></param>
         /// <returns></returns>
         /// 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe double Iterate(double minTemp)
+        public unsafe double Iterate(double SliceTemp)
         {
             if (!IsInitialised)
             {
                 throw new InvalidOperationException("Population has not yet been initialised");
             }
             // Calculate degree days once here rather than in every Cohort.
-            double degreeDays = (minTemp - m_TempThreshold) * m_SliceLengthDays;
+            double degreeDays = (SliceTemp - m_TempThreshold) * m_SliceLengthDays;
             if (degreeDays < 0)
             {
                 degreeDays = 0;
             }
-            // Calculate survival fraction once here rather than in every Cohort
-            double survivalRate = MossieMethods.GetSurvivingFraction(minTemp, m_SliceLengthDays, m_UpperTempLimit);
+            // Calculate survival fraction once here rather than in every Cohort. It may be interesting at some stage 
+            // to investigate calculating a survival rate that varies with age to reflect different acceptable temp 
+            // ranges at different stages of the lifecycle.
+            double survivalRate = MossieMethods.GetSurvivingFraction(SliceTemp, m_SliceLengthDays, m_UpperTempLimit);
             // Temperature suitability at this slice is simply the sum of Contributions from every Cohort.
             // This is given before applying the death / decay of this timeslice.
             // So all we have to do is apply this time-slice's temperature to all currently living cohorts and 
@@ -438,7 +440,7 @@ namespace TempSuitability_CSharp
             double tsAtSlice = 0;
 
             // work on a local copy rather than referencing the fields in the tight loop;
-            // this saves approx 10% of overall program runtime
+            // this single step saves approx 10% of overall program runtime in the array-based implementation.
             double[] localContribs = m_Contribs;
             double[] localDegDays = m_DegDays;
             double localThreshold = m_InfectionThreshold;
@@ -490,7 +492,7 @@ namespace TempSuitability_CSharp
             var f = Math.Pow(
              (Math.Exp(-1 / (-4.4 + (1.31 * sliceTemp) - (0.03 * (Math.Pow(sliceTemp, 2)))))),
              (sliceLengthDays));
-            return f < 0 ? 0 : f > 1 ? 0 : f;
+            return f < 0 ? 0 : f >= 1 ? 0 : f;
         }
     }
 }

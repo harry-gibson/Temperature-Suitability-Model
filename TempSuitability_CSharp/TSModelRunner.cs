@@ -250,46 +250,58 @@ namespace TempSuitability_CSharp
 
             Parallel.For(0, numCells, b, c =>
             {
-                
+
                 if (lsMask[c] != 1)
                 {
                     // this cell is in the sea, no need to run, return as a special case a zero length result array
                     tsOut[c] = new float[0];
                 }
-                int rownum = c / xSize;
-                int colnum = c % xSize;
-                SpatioTemporalParams geogParams = new SpatioTemporalParams();
-                geogParams.Latitude = lats[rownum];
-                geogParams.Longitude = lons[colnum];
-
-                //geogParams.ModelRuntimeDays = nDays;
-                //geogParams.StartJulianDay = 0;
-                
-                // run only if we've got at least 50% of the data and 100+ points
-                var nValid = Math.Min(
-                    dayData[c].Count(v => v != _maxReader.NoDataValue),
-                    nightData[c].Count(v => v != _minReader.NoDataValue));
-                if (nValid < nFiles / 2 || nValid < 100)
-                {
-                    tsOut[c] = new float[0];
-                }
                 else
                 {
-                    TSCellModel tsModel = new TSCellModel(popParams, geogParams, PopulationTypes.Pointers);
-                    if (!tsModel.SetData(dayData[c], nightData[c], dates, _maxReader.NoDataValue.Value))
+                    int rownum = c / xSize;
+                    int colnum = c % xSize;
+                    SpatioTemporalParams geogParams = new SpatioTemporalParams();
+                    geogParams.Latitude = lats[rownum];
+                    geogParams.Longitude = lons[colnum];
+
+                    //geogParams.ModelRuntimeDays = nDays;
+                    //geogParams.StartJulianDay = 0;
+
+                    // run only if we've got at least 50% of the data and 100+ points
+                    var nValid = Math.Min(
+                        dayData[c].Count(v => v != _maxReader.NoDataValue),
+                        nightData[c].Count(v => v != _minReader.NoDataValue));
+                    if (nValid < nFiles / 2 || nValid < 100)
                     {
-                        throw new ApplicationException("Pop goes the weasel");
-                    };
-                    // run the entire ts model for this location
-                    float[] tsCell = tsModel.RunModel();
-                    int nOutputPoints = tsCell.Length;
-                    tsOut[c] = tsCell;
-                    lock (_lockobj) // ensure only 1 thread makes this check 
+                        tsOut[c] = new float[0];
+                    }
+                    else
                     {
-                        // calculate and record the dates of the outputs for an arbitrary one of the cell models
-                        if (outputDates == null)
+                        TSCellModel tsModel = new TSCellModel(popParams, geogParams, PopulationTypes.Pointers);
+                        var dd = dayData[c];
+                        var nd = nightData[c];
+                        float optimal = 28.6857194664029F;
+                        for (int i = 0; i < 727; i++) {
+                            dd[i] = optimal;
+                            if (i%3==0) { dd[i] = 43; }
+                            nd[i] = optimal; }
+                        tsModel.SetData(dd, nd, dates, _maxReader.NoDataValue.Value, false);
+
+                        //if (!tsModel.SetData(dayData[c], nightData[c], dates, _maxReader.NoDataValue.Value, false))
+                        //{
+                        //    throw new ApplicationException("Pop goes the weasel");
+                        //};
+                        // run the entire ts model for this location
+                        float[] tsCell = tsModel.RunModel();
+                        int nOutputPoints = tsCell.Length;
+                        tsOut[c] = tsCell;
+                        lock (_lockobj) // ensure only 1 thread makes this check 
                         {
-                            outputDates = tsModel.OutputDates;
+                            // calculate and record the dates of the outputs for an arbitrary one of the cell models
+                            if (outputDates == null)
+                            {
+                                outputDates = tsModel.OutputDates;
+                            }
                         }
                     }
                 }
@@ -304,7 +316,6 @@ namespace TempSuitability_CSharp
                 throw new ApplicationException("Dates have changed between tiles somehow, this shouldn't happen...");
             }
             return tsOut;
-   //         Console.ReadKey();
         }
 
         /// <summary>

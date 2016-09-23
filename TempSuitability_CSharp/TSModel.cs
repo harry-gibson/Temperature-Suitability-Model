@@ -55,10 +55,20 @@ namespace TempSuitability_CSharp
         private double m_PreviousSunsetTemp;
         private DateTime[] _iteratedOutputDates;
         private DateTime[] _calcOutputDates;
+        /// <summary>
+        /// The interpolation object for interpolating daily max temperatures from the input series at 
+        /// e.g. 8-day intervals. X-values are time in seconds since the first input date.
+        /// </summary>
         private IInterpolation _MaxTempSpline;
+        /// <summary>
+        /// The interpolation object for interpolating daily min temperatures from the input series at 
+        /// e.g. 8-day intervals. X-values are time in seconds since the first input date.
+        /// </summary>
         private IInterpolation _MinTempSpline;
 
         #endregion
+
+        #region Properties
         /// <summary>
         /// Array of DateTimes corresponding in order to the dates of the outputs returned by RunModel, i.e. the first day
         /// of each calendar month within the input time period except for an initial 1 mosquito lifespan's worth
@@ -92,21 +102,13 @@ namespace TempSuitability_CSharp
                 return _calcOutputDates;
             }
         }
+        #endregion
 
         /// <summary>
         /// Constructs a new TSCellModel to calculate dynamic temperature suitability for Pf transmission, across time at a single 
-        /// cell location. The underlying population can be modelled via any object implementing IIterablePopulation, currently there 
+        /// cell location. The underlying population can be modelled via any object implementing IIterablePopulation. Currently there 
         /// are three such classes which take different approaches to the iteration for performance testing; which of these to use 
         /// is currently specified by the PopulationTypes enum. After construction, call SetData before calling RunModel.
-        ///
-        /// Note that the calculation process happens the "opposite way round" to the original Weiss code. The original code would 
-        /// iterate through all the time-slices of the model, and at each point would model a single cohort emerging at that point and 
-        /// then tracking forward through its entire lifespan, adding a contribution to all timeslices for which it lives.
-        /// This implementation tracks an overall population, which is made up of all cohorts currently living, and thus only 
-        /// iterates through the time-slices a single time from start to finish, calculating the overall contribution of the population 
-        /// at each step. The number of loops is the same either way but this approach is more cache-friendly. Moreover we only have to 
-        /// initialise the model once, and then run it for the entire time period, whereas the Weiss model would initialise the model 
-        /// for each month, and thus doubled the amount of calculations.
         /// </summary>
         /// <param name="modelConfigParams"></param>
         /// <param name="spacetimeParams"></param>
@@ -142,23 +144,23 @@ namespace TempSuitability_CSharp
         }
 
         /// <summary>
-        /// configures the data points to run this model. Provide three arrays which must be of identical length containing 
-        /// recorded daytime temps, nighttime temps, and dates of those temps, which must all be of the same length and in sorted order
+        /// configures the data points to run this model. Provide three arrays, which must be of identical length, containing 
+        /// recorded daytime temps, nighttime temps, and dates of those temps, which must all be of the same length and in 
+        /// sorted order. If only one of the temperature series has a valid value at a particular point then the other array at
+        /// that position should be set to NoDataValue.
         /// </summary>
         /// <param name="LST_Day_Temps">Array of LST Day temperatures, one per MODIS file in the period e.g. one every 8 days</param>
         /// <param name="LST_Night_Temps">Array of LST Night temperatures, one per MODIS file in the period e.g. one every 8 days. 
         /// Must be for the same dates as LST_Day input.</param>
         /// <param name="TemperatureDatePoints">Array of DateTime objects representing the dates of the input temperatures.</param>
         /// <returns></returns>
-        public bool SetData(float[] LST_Day_Temps, float[] LST_Night_Temps, DateTime[] TemperatureDatePoints, float NoDataValue)
+        public bool SetData(float[] LST_Day_Temps, float[] LST_Night_Temps, DateTime[] TemperatureDatePoints, float NoDataValue, bool convertTemps)
         {
             // check inputs are of correct length
             if (LST_Day_Temps.Length != LST_Night_Temps.Length ||
                 LST_Day_Temps.Length != TemperatureDatePoints.Length)
             {
                 return false;
-                //throw new ArgumentException(
-                //    "MinTemps and MaxTemps array must currently both be of same size as model runtime and one date must be provided for each.");
             }
             int nPoints = TemperatureDatePoints.Length;
             // check dates are sorted
@@ -167,37 +169,54 @@ namespace TempSuitability_CSharp
                 if (TemperatureDatePoints[i - 1] > TemperatureDatePoints[i])
                 {
                     return false;
-                    // throw new ArgumentException("Date points (and associated temp arrays) must be supplied in correct sorted order");
                 }
             }
             // Store the original input dates
-            // (or some means of calculating the overall runtime (if the first / last values were invalid))
             m_InputTemperatureDates = TemperatureDatePoints;
-
             var startDay = m_InputTemperatureDates.First();
+
+            // For each of max and min temps, we will create a spline between time/value pairs but only for points where the 
+            // temperature was valid (the spline doesn't know about nodata). So first generate separate list of valid time stamps 
+            // for max and min. 
             List<double> validminTemps, validmaxTemps, validminDatePoints, validmaxDatePoints;
-            // we will create the lists at their max possible size and trim later rather than grow as needed,
-            // this is an attempt to fix a garbage collector crash that was occurring here in an old version of mono
+            // we will create the lists at their max possible size (i.e. same as input, all values are valid) and trim later,
+            // rather than grow as needed, this is an attempt to fix a garbage collector crash that was occurring here in an 
+            // old version of mono
             validminTemps = new List<double>(nPoints);
             validmaxTemps = new List<double>(nPoints);
             validmaxDatePoints = new List<double>(nPoints);
             validminDatePoints = new List<double>(nPoints);
             double minTemp, maxTemp;
-            // Only spline time / val pairs for valid temps, so first generate separate time list for max and min. 
             for (int i = 0; i<nPoints; i++)
             {
                 if (LST_Night_Temps[i] != NoDataValue)
                 {
                     ConvertTemperature(LST_Day_Temps[i], LST_Night_Temps[i], TemperatureDatePoints[i].DayOfYear, out maxTemp, out minTemp);
                     // min temp calculation only depends on the night temp
-                    validminTemps.Add(minTemp);
+                    if (convertTemps)
+                    {
+                        validminTemps.Add(minTemp);
+                    }
+                    else
+                    {
+                        // for development only, allow to run the model against unconverted LST values rather than converted air temp
+                        validminTemps.Add(LST_Night_Temps[i]);
+                    }
                     // create a copy of the input image date as seconds since the first one, as the interpolator needs doubles not dates
                     var dSeconds = (TemperatureDatePoints[i] - startDay).TotalSeconds;
                     validminDatePoints.Add(dSeconds);
-                    // max temp calculation depends on the day and night temp
+
+                    // max temp calculation depends on both the day and night temp
                     if (LST_Day_Temps[i] != NoDataValue)
                     {
-                        validmaxTemps.Add(maxTemp);
+                        if (convertTemps)
+                        {
+                            validmaxTemps.Add(maxTemp);
+                        }
+                        else
+                        {
+                            validmaxTemps.Add(LST_Day_Temps[i]);
+                        }
                         validmaxDatePoints.Add(dSeconds);
                     }
                 }
@@ -208,6 +227,7 @@ namespace TempSuitability_CSharp
             {
                 return false;
             }
+
             // generate the spline interpolator objects to get daily temps from the 8-daily (or whatever) inputs
             // note we will use these splines for all days, rather than the original data on the days where they exist,
             // because splines don't have to pass through the data points and we don't want discontinuities
@@ -230,6 +250,11 @@ namespace TempSuitability_CSharp
             _CanRun = true;
             return true;
         }
+
+        /// <summary>
+        /// for development only, just generates and returns the entire 2-hourly interpolated temperature series at this point
+        /// </summary>
+        /// <returns></returns>
         public float[] GetTempSeries()
         {
             if (!_CanRun)
@@ -318,7 +343,7 @@ namespace TempSuitability_CSharp
 
             // First "spin up" the model by running through the first mosquito-lifespan-worth of data so we 
             // have a stabilised population. Generate an array with a temperature for each 2-hour timeslice of a
-            // a mosquito's life
+            // a mosquito's life for a one-shot initialise call
             int spinupSliceNum = 0;
             for (DateTime currentDay = startDay; currentDay < mainRunStartDate; currentDay += oneDay)
             {
