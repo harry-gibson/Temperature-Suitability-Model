@@ -92,6 +92,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="FilenameDateParser_MODIS8Day.cs" />
+    <Compile Include="GeographicCell.cs" />
     <Compile Include="IFilenameDateParser.cs" />
     <Compile Include="MosquitoPopulations.cs" />
     <Compile Include="DataPrep.cs" />
