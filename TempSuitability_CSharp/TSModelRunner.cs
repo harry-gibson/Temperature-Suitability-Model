@@ -260,7 +260,7 @@ namespace TempSuitability_CSharp
                 {
                     int rownum = c / xSize;
                     int colnum = c % xSize;
-                    SpatioTemporalParams geogParams = new SpatioTemporalParams();
+                    GeographicCellLocation geogParams = new GeographicCellLocation();
                     geogParams.Latitude = lats[rownum];
                     geogParams.Longitude = lons[colnum];
 
