@@ -23,6 +23,25 @@ namespace TempSuitability_CSharp
     }
 
     /// <summary>
+    /// enum representing the classes currently known to implement IIterablePopulation
+    /// </summary>
+    enum PopulationTypes
+    {
+        /// <summary>
+        /// A population that is represented by a linq Queue structure: most C#-ish but slow
+        /// </summary>
+        OOCohorts,
+        /// <summary>
+        /// A population that is represented by a series of arrays
+        /// </summary>
+        Arrays,
+        /// <summary>
+        /// A population that is represented by a series of arrays with pointer access
+        /// </summary>
+        Pointers
+    }
+
+    /// <summary>
     /// A Cohort is the smallest tracked unit of mosquito population. Each cohort tracks 
     /// its infectiousness and surviving proportion of mosquitoes, based on the temperatures 
     /// it has been subjected to.

@@ -163,7 +163,7 @@ namespace TempSuitability_CSharp
             }
             else
             {
-                float[][] tileFlatArr = ReadRegionAcrossFiles(xOffset, yOffset, xSize, ySize);
+                float[][] tileFlatArr = ReadRegionAcrossFiles_MP(xOffset, yOffset, xSize, ySize);
                 int cellNum;
                 for (int y = 0; y < ySize; y++)
                 {
@@ -229,6 +229,45 @@ namespace TempSuitability_CSharp
             }
             return tileData;
         }
+
+        public float[][] ReadRegionAcrossFiles_MP(int xOffset, int yOffset, int xSize, int ySize)
+        {
+            int nPixPerTile = xSize * ySize;
+            float[][] tileData = new float[m_FileDates.Count][];
+            ParallelOptions b = new ParallelOptions();
+            b.MaxDegreeOfParallelism = 6;
+            var keys = m_FileDates.Keys;
+            Parallel.For(0, keys.Count, b, c =>
+            {
+                var fDate = keys[c];
+                var fName = m_FileDates[fDate];
+                var newshape = GDAL_Operations.GetRasterShape(fName);
+                if (newshape.Item1 != Shape.Item1 || newshape.Item2 != Shape.Item2)
+                {
+                    throw new ArgumentException("Raster shapes don't match");
+                }
+                var newGT = GDAL_Operations.GetGeoTransform(fName);
+                if (!GeoTransform.SequenceEqual(newGT))
+                {
+                    throw new ArgumentException("Raster geotransforms don't match");
+                }
+                var newNDV = GDAL_Operations.GetNoDataValue(fName);
+                if (newNDV != NoDataValue)
+                {
+                    throw new ArgumentException("Raster nodata values don't match");
+                }
+                var newProj = GDAL_Operations.GetProjection(fName);
+                if (newProj != Projection)
+                {
+                    throw new ArgumentException("Raster projections don't match");
+                }
+                tileData[c] = GDAL_Operations.ReadGDALRasterBandsToFlatArray(
+                    fName, xSize, ySize, xOffset, yOffset, 1);
+
+            });
+            return tileData;
+        }
+
         public float[][]ReadRegionAcrossFiles(int xOffset, int yOffset, int xSize, int ySize)
         {
             int nPixPerTile = xSize * ySize;
