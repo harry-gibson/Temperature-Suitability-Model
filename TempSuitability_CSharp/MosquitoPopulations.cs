@@ -164,7 +164,7 @@ namespace TempSuitability_CSharp
             {
 
                 double minTemp = SpinUpTemps[i];
-                double survivalRate = MossieMethods.GetSurvivingFraction(minTemp, m_SliceLengthDays, m_UpperTempLimit);
+                double survivalRate = MossieMethods.GetSurvivingFraction_Martens2(minTemp, m_SliceLengthDays, m_UpperTempLimit);
                 double degreeDays = Math.Max(((minTemp - m_TempThreshold) * m_SliceLengthDays), 0);
 
                 // we don't care what the actual result of the sum is at this point
@@ -201,7 +201,7 @@ namespace TempSuitability_CSharp
             // Calculate degree days once here rather than in every Cohort.
             double degreeDays = Math.Max(((minTemp - m_TempThreshold) * m_SliceLengthDays), 0);
             // Calculate survival fraction once here rather than in every Cohort
-            double survivalRate = MossieMethods.GetSurvivingFraction(minTemp, m_SliceLengthDays, m_UpperTempLimit);
+            double survivalRate = MossieMethods.GetSurvivingFraction_Martens2(minTemp, m_SliceLengthDays, m_UpperTempLimit);
             // Temperature suitability at this slice is simply the sum of Contributions from every Cohort.
             // This is given before applying the death / decay of this timeslice.
             // So all we have to do is this time-slice's temperature to all currently living cohorts and 
@@ -279,7 +279,7 @@ namespace TempSuitability_CSharp
             {
                 double minTemp = SpinUpTemps[i];
                 // survival rate is zero if the upper temp threshold is exceeded, meaning all cohorts will die
-                double survivalRate = MossieMethods.GetSurvivingFraction(minTemp, m_SliceLengthDays, m_UpperTempLimit);
+                double survivalRate = MossieMethods.GetSurvivingFraction_Martens2(minTemp, m_SliceLengthDays, m_UpperTempLimit);
                 double degreeDays = Math.Max(((minTemp - m_TempThreshold) * m_SliceLengthDays), 0);
 
                 // we don't care what the actual result of the sum is at this point
@@ -323,7 +323,7 @@ namespace TempSuitability_CSharp
             // Calculate degree days once here rather than in every Cohort.
             double degreeDays = Math.Max(((minTemp - m_TempThreshold) * m_SliceLengthDays), 0);
             // Calculate survival fraction once here rather than in every Cohort
-            double survivalRate = MossieMethods.GetSurvivingFraction(minTemp, m_SliceLengthDays, m_UpperTempLimit);
+            double survivalRate = MossieMethods.GetSurvivingFraction_Martens2(minTemp, m_SliceLengthDays, m_UpperTempLimit);
             // Temperature suitability at this slice is simply the sum of Contributions from every Cohort.
             // This is given before applying the death / decay of this timeslice.
             // So all we have to do is apply this time-slice's temperature to all currently living cohorts and 
@@ -405,7 +405,7 @@ namespace TempSuitability_CSharp
             for (int i = 0; i < m_LifespanSlices; i++)
             {
                 double minTemp = SpinUpTemps[i];
-                double survivalRate = MossieMethods.GetSurvivingFraction(minTemp, m_SliceLengthDays, m_UpperTempLimit);
+                double survivalRate = MossieMethods.GetSurvivingFraction_Martens2(minTemp, m_SliceLengthDays, m_UpperTempLimit);
                 double degreeDays = Math.Max(((minTemp - m_TempThreshold) * m_SliceLengthDays), 0);
 
                 // decrease all the living cohorts by the survival fraction and 
@@ -451,7 +451,7 @@ namespace TempSuitability_CSharp
             // Calculate survival fraction once here rather than in every Cohort. It may be interesting at some stage 
             // to investigate calculating a survival rate that varies with age to reflect different acceptable temp 
             // ranges at different stages of the lifecycle.
-            double survivalRate = MossieMethods.GetSurvivingFraction(SliceTemp, m_SliceLengthDays, m_UpperTempLimit);
+            double survivalRate = MossieMethods.GetSurvivingFraction_Martens2(SliceTemp, m_SliceLengthDays, m_UpperTempLimit);
             // Temperature suitability at this slice is simply the sum of Contributions from every Cohort.
             // This is given before applying the death / decay of this timeslice.
             // So all we have to do is apply this time-slice's temperature to all currently living cohorts and 
@@ -498,10 +498,33 @@ namespace TempSuitability_CSharp
 
     }
 
+    /// <summary>
+    /// Static implementations of various functions for calculating the proportion of mosquitos to survive a given number 
+    /// of days. The functions are all extracted from summaries published in :
+    /// "How malaria models relate temperature to malaria transmission" (Lunde, Bayoh & Bernt Lindtjørn, 2013)
+    /// DOI: 10.1186/1756-3305-6-20.
+    /// Only the functions which depend solely on temperature have been implemented as at the present time we do not 
+    /// have a suitable global temporally-varying relative humidity dataset.
+    /// </summary>
     static class MossieMethods
     {
+        /// <summary>
+        /// Implements the "Martens equation" for mosquito survival as a function of air temperature, published 
+        /// as a PhD thesis at 
+        /// https://cris.maastrichtuniversity.nl/portal/files/1425195/guid-1dbc4a8c-a914-41b6-ab86-ea00cf972d9a-ASSET1.0
+        ///     (Martens W: Health impacts of climate change and ozone depletion: an eco-epidemiological modelling approach. 
+        ///     PhD thesis. 1997, Maastricht, Netherlands: Maastricht University)
+        /// Of note is that this equation was suggested empirically based on _three_ data points from the literature 
+        /// from 1949, 1949, and 1981. So it's not like it's the bible.
+        /// A slightly simplified version of this function (without the e term) was the one used by Gething et al in the 
+        /// original non-dynamic temperature suitability mapping, and this function as it is was used by Weiss et al.
+        /// </summary>
+        /// <param name="sliceTemp"></param>
+        /// <param name="sliceLengthDays"></param>
+        /// <param name="deathTemp"></param>
+        /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static double GetSurvivingFraction(double sliceTemp, double sliceLengthDays, double deathTemp)
+        public static double GetSurvivingFraction_Martens2(double sliceTemp, double sliceLengthDays, double deathTemp)
         {
             if (sliceTemp > deathTemp)
             {
@@ -512,6 +535,120 @@ namespace TempSuitability_CSharp
              (Math.Exp(-1 / (-4.4 + (1.31 * sliceTemp) - (0.03 * (Math.Pow(sliceTemp, 2)))))),
              (sliceLengthDays));
             return f < 0 ? 0 : f >= 1 ? 0 : f;
+        }
+
+        /// <summary>
+        /// This implements a re-parameterised version of the "Martens equation" for survival as a function of 
+        /// air temperature, as published in the summary paper referenced in the class description. The equation form
+        /// is identical to that implemented in GetSurvivingFraction_Martens2 but the constant values are slightly altered.
+        /// </summary>
+        /// <param name="sliceTemp"></param>
+        /// <param name="sliceLengthDays"></param>
+        /// <param name="deathTemp"></param>
+        /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static double GetSurvivingFraction_Martens3(double sliceTemp, double sliceLengthDays, double deathTemp)
+        {
+            if (sliceTemp > deathTemp)
+            {
+                return 0;
+            }
+
+            var f = Math.Pow(
+             (Math.Exp(-1 / (-4.31564 + (2.19646 * sliceTemp) - (0.058276 * (Math.Pow(sliceTemp, 2)))))),
+             (sliceLengthDays));
+            return f < 0 ? 0 : f >= 1 ? 0 : f;
+        }
+
+        /// <summary>
+        /// This implementes the "Bayou-Mordecai" function for mosquito survival as a function of temperature, as 
+        /// published in the summary paper referenced in the class description. As there is no exponential term this 
+        /// model is likely to suffer from inappropriately prolonged survival at high temperatures.
+        /// </summary>
+        /// <param name="sliceTemp"></param>
+        /// <param name="sliceLengthDays"></param>
+        /// <param name="deathTemp"></param>
+        /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static double GetSurvivingFraction_BayohMordecai(double sliceTemp, double sliceLengthDays, double deathTemp)
+        {
+            if (sliceTemp > deathTemp)
+            {
+                return 0;
+            }
+            var daily = -0.000828 * (Math.Pow(sliceTemp, 2)) + 0.0367 * sliceTemp + 0.522;
+            var f = Math.Pow(daily, sliceLengthDays);
+            return f < 0 ? 0 : f >= 1 ? 0 : f;
+        }
+
+        /// <summary>
+        /// This implementes the "Bayou-Ermert" function for mosquito survival as a function of temperature, as 
+        /// published in the summary paper referenced in the class description. As there is no exponential term this 
+        /// model is likely to suffer from inappropriately prolonged survival at high temperatures.
+        /// </summary>
+        /// <param name="sliceTemp"></param>
+        /// <param name="sliceLengthDays"></param>
+        /// <param name="deathTemp"></param>
+        /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static double GetSurvivingFraction_BayohErmert(double sliceTemp, double sliceLengthDays, double deathTemp)
+        {
+            if (sliceTemp > deathTemp)
+            {
+                return 0;
+            }
+            var daily =
+                -2.123e-7 * Math.Pow(sliceTemp, 5)
+                + 1.961e-5 * Math.Pow(sliceTemp, 4)
+                - 6.394e-4 * Math.Pow(sliceTemp, 3)
+                + Math.Pow(8.217, -3) * Math.Pow(sliceTemp, 2)
+                - 1.865e-2 * sliceTemp
+                + 7.238e-1;
+            var f = Math.Pow(daily, sliceLengthDays);
+            return f;
+        }
+
+        /// <summary>
+        /// Implements equation 16 from 
+        /// Modeling the role of environmental variables on the population dynamics of the malaria vector Anopheles gambiae sensu stricto
+        /// by Parham et al (DOI: DOI: 10.1186/1475-2875-11-271)
+        /// Referred to as "Bayoh-Parham" model in the summary paper referenced in class description.
+        /// </summary>
+        /// <param name="sliceTemp"></param>
+        /// <param name="rhPercent"></param>
+        /// <param name="sliceLengthDays"></param>
+        /// <param name="deathTemp"></param>
+        /// <returns></returns>
+        public static double GetSurvivingFraction_BayohParham(double sliceTemp, double rhPercent, double sliceLengthDays, double deathTemp)
+        {
+            var b0 = 0.00113 * Math.Pow(rhPercent, 2) - 0.158 * rhPercent - 6.61;
+            var b1 = -2.32e-4 * Math.Pow(rhPercent, 2) + 0.0515 * rhPercent + 1.06;
+            var b2 = 4e-6 * Math.Pow(rhPercent, 2) - 1.09e-3 * rhPercent - 0.0255;
+            var daily = Math.Exp(-1 / ((b2 * Math.Pow(sliceTemp, 2)) + (b1 * sliceTemp) + b0));
+            var f = Math.Pow(daily, sliceLengthDays);
+            return f;
+        }
+
+        /// <summary>
+        /// Implements the Bayoh-Lunde model for mosquito survival as a function of temperature and relative humidity, introduced in the paper 
+        /// referenced in the class description. The term for mosquito size is not included in this implementation, corresponding to a 
+        /// mosquito size of 3.05mm where the original term calculates to 1.
+        /// </summary>
+        /// <param name="sliceTemp"></param>
+        /// <param name="rhPercent"></param>
+        /// <param name="sliceLengthDays"></param>
+        /// <param name="deathTemp"></param>
+        /// <returns></returns>
+        public static double GetSurvivingFraction_BayohLunde(double sliceTemp, double rhPercent, double sliceLengthDays, double deathTemp)
+        {
+            var fRH = 6.48007 + .69570 * (1 - Math.Exp(-0.06 * rhPercent));
+            var cmn = 1 + (sliceTemp + 1) / 21;
+            var brack1 = Math.Pow(cmn, (2/3));
+            var brack2 = Math.Pow(cmn, 2);
+            var pwr = 10 + brack1 * (brack2 - (cmn * 2) - fRH);
+            var daily = Math.Exp(pwr);
+            var f = Math.Pow(daily, sliceLengthDays);
+            return f;
         }
     }
 }
