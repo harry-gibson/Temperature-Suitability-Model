@@ -16,27 +16,31 @@ namespace TempSuitability_CSharp
     class TSCellModel
     {
         #region Fields
-        private readonly PopulationParams modelParams;
-        private readonly GeographicCell modelLocation;
-        private IIterablePopulation m_Pop;
+        protected readonly PopulationParams modelParams;
+        protected readonly GeographicCell modelLocation;
+        protected ITemperatureIterablePopulation m_Pop;
 
-        private DateTime[] m_InputTemperatureDates;
-        private bool _CanRun = false;
-        private bool _PotentiallySuitableTemperature = false;
-        
-        private double m_PreviousSunsetTemp;
-        private DateTime[] _iteratedOutputDates;
-        private DateTime[] _calcOutputDates;
+        protected DateTime[] m_InputTemperatureDates;
+        protected bool _CanRunTemps = false;
+        protected bool _CanRun
+        {
+            get { return _CanRunTemps; }
+        }
+        protected bool _PotentiallySuitableTemperature = false;
+
+        protected double m_PreviousSunsetTemp;
+        protected DateTime[] _iteratedOutputDates;
+        protected DateTime[] _calcOutputDates;
         /// <summary>
         /// The interpolation object for interpolating daily max temperatures from the input series at 
         /// e.g. 8-day intervals. X-values are time in seconds since the first input date.
         /// </summary>
-        private IInterpolation _MaxTempSpline;
+        protected IInterpolation _MaxTempSpline;
         /// <summary>
         /// The interpolation object for interpolating daily min temperatures from the input series at 
         /// e.g. 8-day intervals. X-values are time in seconds since the first input date.
         /// </summary>
-        private IInterpolation _MinTempSpline;
+        protected IInterpolation _MinTempSpline;
 
         #endregion
 
@@ -89,27 +93,18 @@ namespace TempSuitability_CSharp
         {
             this.modelParams = modelConfigParams;
             this.modelLocation = new GeographicCell(locationParams);
-            double sliceLengthDays = modelParams.SliceLength.TotalDays;
-            int lifespanSlices = modelConfigParams.LifespanSlices;
+            //double sliceLengthDays = modelParams.SliceLength.TotalDays;
+            //int lifespanSlices = modelConfigParams.LifespanSlices;
             switch (modelType)
             {
                 case PopulationTypes.OOCohorts:
-                    m_Pop = new PopulationOO(lifespanSlices, sliceLengthDays, 
-                        modelConfigParams.MinTempThreshold, 
-                        modelConfigParams.DegreeDayThreshold,
-                        modelConfigParams.MosquitoDeathTemperature);
+                    m_Pop = new PopulationOO(modelConfigParams);
                     break;
                 case PopulationTypes.Arrays:
-                    m_Pop = new PopulationArray(lifespanSlices, sliceLengthDays, 
-                        modelConfigParams.MinTempThreshold, 
-                        modelConfigParams.DegreeDayThreshold,
-                        modelConfigParams.MosquitoDeathTemperature);
+                    m_Pop = new PopulationArray(modelConfigParams);
                     break;
                 case PopulationTypes.Pointers:
-                    m_Pop = new PopulationPtr(lifespanSlices, sliceLengthDays, 
-                        modelConfigParams.MinTempThreshold, 
-                        modelConfigParams.DegreeDayThreshold, 
-                        modelConfigParams.MosquitoDeathTemperature);
+                    m_Pop = new PopulationPtr(modelConfigParams);
                     break;
             }
             
@@ -126,7 +121,7 @@ namespace TempSuitability_CSharp
         /// Must be for the same dates as LST_Day input.</param>
         /// <param name="TemperatureDatePoints">Array of DateTime objects representing the dates of the input temperatures.</param>
         /// <returns></returns>
-        public bool SetData(float[] LST_Day_Temps, float[] LST_Night_Temps, DateTime[] TemperatureDatePoints, float NoDataValue, bool convertTemps)
+        public bool SetTempData(float[] LST_Day_Temps, float[] LST_Night_Temps, DateTime[] TemperatureDatePoints, float NoDataValue, bool convertTemps)
         {
             // check inputs are of correct length
             if (LST_Day_Temps.Length != LST_Night_Temps.Length ||
@@ -219,7 +214,7 @@ namespace TempSuitability_CSharp
                 _PotentiallySuitableTemperature = true;
             }
 
-            _CanRun = true;
+            _CanRunTemps = true;
             return true;
         }
 
@@ -418,7 +413,7 @@ namespace TempSuitability_CSharp
         /// <param name="dayMinTemp"></param>
         /// <param name="dayMaxTemp"></param>
         /// <returns></returns>
-        private double InterpolateHourlyTemperature(double hourOfDay, double sunriseTime, double sunsetTime, double dayMinTemp, double dayMaxTemp)
+        protected double InterpolateHourlyTemperature(double hourOfDay, double sunriseTime, double sunsetTime, double dayMinTemp, double dayMaxTemp)
         {
             double daylightHrs = sunsetTime - sunriseTime;
             double hrTemp;

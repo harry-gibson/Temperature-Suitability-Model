@@ -54,5 +54,14 @@ namespace TempSuitability_CSharp
         /// The minimum proportion of the data series that must be valid (non-NDV) to run the model
         /// </summary>
         public double ValidDataProportion { get; set; }
+
+        /// <summary>
+        /// Which of the published survival functions should be used to calculate what proportion of the existing 
+        /// population survives each model timestep. Which function is chosen determines whether the model can be 
+        /// run with only temperature data or if humidity data is also required.
+        /// </summary>
+        public MossieMethods.SurvivalFunctions SurvivalFunction { get; set; }
+
+
     }
 }

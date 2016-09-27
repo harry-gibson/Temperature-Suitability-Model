@@ -9,13 +9,15 @@ namespace TempSuitability_CSharp
 {
     /// <summary>
     /// Classes implementing this interface represent a population of mosquitoes at a cell,
-    ///  which comprises a number of cohorts (the mosquitoes born in a single timeslice) - 
+    /// which comprises a number of cohorts (the mosquitoes born in a single timeslice) - 
     /// one cohort for each timeslice in the lifespan of a mosquito. The population can 
-    /// be iterated (moved forward by a timestep) to run the temperature suitability model. 
+    /// be iterated (moved forward by a timestep) by supplying a temperature value which will 
+    /// be used to calculate the temperature-dependent survival of the population and thus 
+    /// to run the temperature suitability model.
     /// Interface allows for different underlying implementations of the population to test performance 
     /// of different approaches.
     /// </summary>
-    interface IIterablePopulation
+    interface ITemperatureIterablePopulation
     {
         bool IsInitialised { get; }
         void Initialise(double[] DailyLifetimeTemps);
@@ -23,7 +25,24 @@ namespace TempSuitability_CSharp
     }
 
     /// <summary>
-    /// enum representing the classes currently known to implement IIterablePopulation
+    /// Classes implementing this interface represent a population of mosquitoes at a cell, 
+    /// which comprises a number of cohorts (the mosquitoes born in a single timeslice) - 
+    /// one cohort for each timeslice in the lifespan of a mosquito. The population can 
+    /// be iterated (moved forward by a timestep) by supplying a temperature and a relative 
+    /// humidity value which will be used to calculate the temperature and humidity dependent 
+    /// survival of the population and thus to run the temperature suitability model.
+    /// Interface allows for different underlying implementations of the population to test performance 
+    /// of different approaches.
+    /// </summary>
+    interface ITempHumidityIterablePopulation :ITemperatureIterablePopulation
+    {
+        void Initialise(double[] DailyLifetimeTemps, double[] DailyLifetimeRH);
+        double Iterate(double DailyMinTemp, double DailyRHPercent);
+        bool GetRequiresHumidity();
+    }
+
+    /// <summary>
+    /// enum representing the classes currently known to implement ITemperatureIterablePopulation
     /// </summary>
     enum PopulationTypes
     {
@@ -121,7 +140,7 @@ namespace TempSuitability_CSharp
     /// C# collection types (Queue) of a new type Cohort. 
     /// This is quite slow so not used in production but the code was written this way originally.
     /// </summary>
-    class PopulationOO : IIterablePopulation
+    class PopulationOO : ITemperatureIterablePopulation
     {
         /// <summary>
         /// Population is implemented as a Queue (FIFO) of Cohorts. It's private so we can ensure 
@@ -136,19 +155,17 @@ namespace TempSuitability_CSharp
         private readonly double m_UpperTempLimit;
 
         public bool IsInitialised { get; private set; }
-
-        public PopulationOO(int LifespanSlices, double SliceLengthDays, double TempThreshold, double InfectionThreshold, double DeathAboveTemperature)
+        
+        public PopulationOO(PopulationParams modelConfigParams)
         {
-            m_LifespanSlices = LifespanSlices;
-            m_SliceLengthDays = SliceLengthDays;
-            m_InfectionThreshold = InfectionThreshold;
-            m_TempThreshold = TempThreshold;
-            m_UpperTempLimit = DeathAboveTemperature;
+            m_LifespanSlices = modelConfigParams.LifespanSlices;
+            m_SliceLengthDays = modelConfigParams.SliceLength.TotalDays;
+            m_InfectionThreshold = modelConfigParams.DegreeDayThreshold;
+            m_TempThreshold = modelConfigParams.MinTempThreshold;
+            m_UpperTempLimit = modelConfigParams.MosquitoDeathTemperature;
             IsInitialised = false;
-            // Create the population "queue" with length of one lifespan 
-            m_Population = new Queue<Cohort>(LifespanSlices);
+            m_Population = new Queue<Cohort>(m_LifespanSlices);
         }
-
         /// Initialise the population with an initial set of cohorts, iterating each one 
         /// every time a new one is added so they are all appropriately "decayed"
         /// </summary>
@@ -234,7 +251,7 @@ namespace TempSuitability_CSharp
     /// have each been exposed to. We maintain a property to track which is the "oldest" which moves forwards 
     /// at each iteration
     /// </summary>
-    class PopulationArray :IIterablePopulation
+    class PopulationArray :ITemperatureIterablePopulation
     {
         private double[] m_Contribs;
         private double[] m_DegDays;
@@ -247,15 +264,15 @@ namespace TempSuitability_CSharp
         private readonly double m_UpperTempLimit;
 
         public bool IsInitialised { get; private set; }
-        public PopulationArray(int LifespanSlices, double SliceLengthDays, double TempThreshold, double InfectionThreshold, double DeathAboveTemperature)
+    
+        public PopulationArray(PopulationParams modelConfigParams)
         {
-            m_LifespanSlices = LifespanSlices;
-            m_SliceLengthDays = SliceLengthDays;
-            m_InfectionThreshold = InfectionThreshold;
-            m_TempThreshold = TempThreshold;
-            m_UpperTempLimit = DeathAboveTemperature;
+            m_LifespanSlices = modelConfigParams.LifespanSlices;
+            m_SliceLengthDays = modelConfigParams.SliceLength.TotalDays;
+            m_InfectionThreshold = modelConfigParams.DegreeDayThreshold;
+            m_TempThreshold = modelConfigParams.MinTempThreshold;
+            m_UpperTempLimit = modelConfigParams.MosquitoDeathTemperature;
             IsInitialised = false;
-            // Create the population "queue" with length of one lifespan 
         }
 
         /// <summary>
@@ -362,29 +379,36 @@ namespace TempSuitability_CSharp
     /// have each been exposed to. We maintain a property to track which is the "oldest" which moves forwards 
     /// at each iteration
     /// </summary>
-    class PopulationPtr : IIterablePopulation
+    class PopulationPtr : ITemperatureIterablePopulation
     {
-        private double[] m_Contribs;
-        private double[] m_DegDays;
-        private int m_NextToDie = 0;
+        protected double[] m_Contribs;
+        protected double[] m_DegDays;
+        protected int m_NextToDie = 0;
+        protected MossieMethods.SurvivalFunctions m_survivalFunc;
 
-        private readonly int m_LifespanSlices;
-        private readonly double m_SliceLengthDays;
-        private readonly double m_TempThreshold;
-        private readonly double m_InfectionThreshold;
-        private readonly double m_UpperTempLimit;
+        protected readonly int m_LifespanSlices;
+        protected readonly double m_SliceLengthDays;
+        protected readonly double m_TempThreshold;
+        protected readonly double m_InfectionThreshold;
+        protected readonly double m_UpperTempLimit;
+        
+        public bool IsInitialised { get; protected set; }
 
-        public bool IsInitialised { get; private set; }
-        public PopulationPtr(int LifespanSlices, double SliceLengthDays, double TempThreshold, double InfectionThreshold, double DeathAboveTemperature)
+        /// <summary>
+        /// The survival function for this implementation of the population is fixed as the "Martens2" function
+        /// </summary>
+        /// <param name="modelConfigParams"></param>
+        public PopulationPtr(PopulationParams modelConfigParams)
         {
-            m_LifespanSlices = LifespanSlices;
-            m_SliceLengthDays = SliceLengthDays;
-            m_InfectionThreshold = InfectionThreshold;
-            m_TempThreshold = TempThreshold;
-            m_UpperTempLimit = DeathAboveTemperature;
+            m_LifespanSlices = modelConfigParams.LifespanSlices;
+            m_SliceLengthDays = modelConfigParams.SliceLength.TotalDays;
+            m_InfectionThreshold = modelConfigParams.DegreeDayThreshold;
+            m_TempThreshold = modelConfigParams.MinTempThreshold;
+            m_UpperTempLimit = modelConfigParams.MosquitoDeathTemperature;
             IsInitialised = false;
+            m_survivalFunc = MossieMethods.SurvivalFunctions.Martens2;
         }
-
+        
         /// <summary>
         /// Initialise the population with an initial set of cohorts, iterating each one 
         /// every time a new one is added so they are all appropriately "decayed"
@@ -499,6 +523,175 @@ namespace TempSuitability_CSharp
     }
 
     /// <summary>
+    /// Implements a mosquito population at a cell which can be iterated with a temperature+humidity pair of values
+    /// to decay according to a choice of different survival functions.
+    /// </summary>
+    class ConfigurableDecayPopulation: PopulationPtr, ITempHumidityIterablePopulation
+    {
+        public ConfigurableDecayPopulation(PopulationParams modelConfigParams) : base(modelConfigParams)
+        {
+            m_survivalFunc = modelConfigParams.SurvivalFunction;
+        }
+        
+        public bool GetRequiresHumidity()
+        {
+              switch (m_survivalFunc)
+                {
+                    case MossieMethods.SurvivalFunctions.Martens2:
+                    case MossieMethods.SurvivalFunctions.Martens3:
+                    case MossieMethods.SurvivalFunctions.BayohMordecai:
+                    case MossieMethods.SurvivalFunctions.BayohErmert:
+                        return false;
+                    default:
+                        return true;
+                }
+        }
+
+        public unsafe void Initialise(double[] SpinUpTemps, double[] SpinUpHumidities)
+        {
+            if (SpinUpTemps.Length != m_LifespanSlices || SpinUpHumidities.Length != m_LifespanSlices)
+            {
+                throw new ArgumentException("Population must be initialised with one temp and humidity for each slice in a lifespan");
+            }
+            // initialise the population arrays (all values will be set to 0)
+            m_Contribs = new double[m_LifespanSlices];
+            m_DegDays = new double[m_LifespanSlices];
+            double[] localContribs = m_Contribs;
+            double[] localDegDays = m_DegDays;
+
+            for (int i = 0; i < m_LifespanSlices; i++)
+            {
+                double sliceTemp = SpinUpTemps[i];
+                double sliceHum = SpinUpHumidities[i];
+                double survivalRate;
+                switch (m_survivalFunc)
+                {
+                    case MossieMethods.SurvivalFunctions.BayohErmert:
+                        survivalRate = MossieMethods.GetSurvivingFraction_BayohErmert(sliceTemp, m_SliceLengthDays, m_UpperTempLimit);
+                        break;
+                    case MossieMethods.SurvivalFunctions.BayohMordecai:
+                        survivalRate = MossieMethods.GetSurvivingFraction_BayohMordecai(sliceTemp, m_SliceLengthDays, m_UpperTempLimit);
+                        break;
+                    case MossieMethods.SurvivalFunctions.Martens2:
+                        survivalRate = MossieMethods.GetSurvivingFraction_Martens2(sliceTemp, m_SliceLengthDays, m_UpperTempLimit);
+                        break;
+                    case MossieMethods.SurvivalFunctions.Martens3:
+                        survivalRate = MossieMethods.GetSurvivingFraction_Martens3(sliceTemp, m_SliceLengthDays, m_UpperTempLimit);
+                        break;
+                    case MossieMethods.SurvivalFunctions.BayohParham:
+                        survivalRate = MossieMethods.GetSurvivingFraction_BayohParham(sliceTemp, sliceHum, m_SliceLengthDays, m_UpperTempLimit);
+                        break;
+                    case MossieMethods.SurvivalFunctions.BayohLunde:
+                        survivalRate = MossieMethods.GetSurvivingFraction_BayohLunde(sliceTemp, sliceHum, m_SliceLengthDays, m_UpperTempLimit);
+                        break;
+                    default:
+                        throw new InvalidOperationException("Unrecognised survival function / not implemented");
+                }
+                double degreeDays = Math.Max(((sliceTemp - m_TempThreshold) * m_SliceLengthDays), 0);
+
+                // decrease all the living cohorts by the survival fraction and 
+                // we don't care what the actual result of the sum is at this point
+                for (int cohPos = 0; cohPos < i; cohPos++)
+                {
+                    localContribs[cohPos] *= survivalRate;
+                    localDegDays[cohPos] += degreeDays;
+                }
+                // "hatch" the next cohort
+                localContribs[i] = 1;
+                localDegDays[i] = 0;
+            }
+            m_Contribs = localContribs;
+            m_DegDays = localDegDays;
+            IsInitialised = true;
+
+        }
+
+        public unsafe double Iterate (double SliceTemp, double SliceHumidity)
+        {
+            if (!IsInitialised)
+            {
+                throw new InvalidOperationException("Population has not yet been initialised");
+            }
+            // Calculate degree days once here rather than in every Cohort.
+            double degreeDays = (SliceTemp - m_TempThreshold) * m_SliceLengthDays;
+            if (degreeDays < 0)
+            {
+                degreeDays = 0;
+            }
+            // Calculate survival fraction once here rather than in every Cohort. It may be interesting at some stage 
+            // to investigate calculating a survival rate that varies with age to reflect different acceptable temp 
+            // ranges at different stages of the lifecycle.
+            double survivalRate;// = MossieMethods.GetSurvivingFraction_Martens2(SliceTemp, m_SliceLengthDays, m_UpperTempLimit);
+            switch (m_survivalFunc)
+            {
+                case MossieMethods.SurvivalFunctions.BayohErmert:
+                    survivalRate = MossieMethods.GetSurvivingFraction_BayohErmert(SliceTemp, m_SliceLengthDays, m_UpperTempLimit);
+                    break;
+                case MossieMethods.SurvivalFunctions.BayohMordecai:
+                    survivalRate = MossieMethods.GetSurvivingFraction_BayohMordecai(SliceTemp, m_SliceLengthDays, m_UpperTempLimit);
+                    break;
+                case MossieMethods.SurvivalFunctions.Martens2:
+                    survivalRate = MossieMethods.GetSurvivingFraction_Martens2(SliceTemp, m_SliceLengthDays, m_UpperTempLimit);
+                    break;
+                case MossieMethods.SurvivalFunctions.Martens3:
+                    survivalRate = MossieMethods.GetSurvivingFraction_Martens3(SliceTemp, m_SliceLengthDays, m_UpperTempLimit);
+                    break;
+                case MossieMethods.SurvivalFunctions.BayohParham:
+                    survivalRate = MossieMethods.GetSurvivingFraction_BayohParham(SliceTemp, SliceHumidity, m_SliceLengthDays, m_UpperTempLimit);
+                    break;
+                case MossieMethods.SurvivalFunctions.BayohLunde:
+                    survivalRate = MossieMethods.GetSurvivingFraction_BayohLunde(SliceTemp, SliceHumidity, m_SliceLengthDays, m_UpperTempLimit);
+                    break;
+                default:
+                    throw new InvalidOperationException("Unrecognised survival function / not implemented");
+            }
+            // Temperature suitability at this slice is simply the sum of Contributions from every Cohort.
+            // This is given before applying the death / decay of this timeslice.
+            // So all we have to do is apply this time-slice's temperature to all currently living cohorts and 
+            // summarise the return values.
+            double tsAtSlice = 0;
+
+            // work on a local copy rather than referencing the fields in the tight loop;
+            // this single step saves approx 10% of overall program runtime in the array-based implementation.
+            double[] localContribs = m_Contribs;
+            double[] localDegDays = m_DegDays;
+            double localThreshold = m_InfectionThreshold;
+            int count = m_LifespanSlices;
+            fixed (double* pContribs = localContribs, pDegDays = localDegDays)
+            {
+                double* pContrib = pContribs, pDegDay = pDegDays;
+                for (int i = 0; i < count; i++)
+                {
+                    // go through each cohort of the current population, based on pointers
+                    if (*pDegDay > localThreshold)
+                    {
+                        // this cohort has reached sporogenesis threshold, it contributes to the temperature suitability 
+                        // of this timeslice based on the surviving fraction _before_ this timeslice's die-off
+                        tsAtSlice += *pContrib;
+                    }
+                    // reduce the surviving fraction of this cohort (possibly to zero if mosoquito-baking temp was exceeded)
+                    *pContrib *= survivalRate;
+                    // add the degree-days of this slice to the total degree days experienced by this cohort (probably quicker 
+                    // just to do it rather than only conditionally doing it if baking didn't occur)
+                    *pDegDay += degreeDays;
+                    // move pointer for contribution and degree day onto next value
+                    pContrib++;
+                    pDegDay++;
+                }
+            }
+            // spawn a new one (replacing the previous value at this position, the cohort which is now dead)
+            localContribs[m_NextToDie] = 1;
+            localDegDays[m_NextToDie] = 0;
+            // copy local variables back to field
+            m_Contribs = localContribs;
+            m_DegDays = localDegDays;
+            m_NextToDie = (m_NextToDie + 1) % m_LifespanSlices;
+            return tsAtSlice;
+        }
+    }
+
+
+    /// <summary>
     /// Static implementations of various functions for calculating the proportion of mosquitos to survive a given number 
     /// of days. The functions are all extracted from summaries published in :
     /// "How malaria models relate temperature to malaria transmission" (Lunde, Bayoh & Bernt Lindtjørn, 2013)
@@ -508,6 +701,16 @@ namespace TempSuitability_CSharp
     /// </summary>
     static class MossieMethods
     {
+        public enum SurvivalFunctions
+        {
+            Martens2,
+            Martens3,
+            BayohMordecai,
+            BayohErmert,
+            BayohParham,
+            BayohLunde
+        }
+
         /// <summary>
         /// Implements the "Martens equation" for mosquito survival as a function of air temperature, published 
         /// as a PhD thesis at 
@@ -619,6 +822,7 @@ namespace TempSuitability_CSharp
         /// <param name="sliceLengthDays"></param>
         /// <param name="deathTemp"></param>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double GetSurvivingFraction_BayohParham(double sliceTemp, double rhPercent, double sliceLengthDays, double deathTemp)
         {
             var b0 = 0.00113 * Math.Pow(rhPercent, 2) - 0.158 * rhPercent - 6.61;
@@ -639,6 +843,7 @@ namespace TempSuitability_CSharp
         /// <param name="sliceLengthDays"></param>
         /// <param name="deathTemp"></param>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double GetSurvivingFraction_BayohLunde(double sliceTemp, double rhPercent, double sliceLengthDays, double deathTemp)
         {
             var fRH = 6.48007 + .69570 * (1 - Math.Exp(-0.06 * rhPercent));

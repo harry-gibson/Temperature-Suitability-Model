@@ -240,9 +240,11 @@ namespace TempSuitability_CSharp
             popParams.MosquitoDeathTemperature = set.ParamDeathTempCelsius; ;
             popParams.MosquitoLifespanDays = new TimeSpan((int)set.ParamLifespanDays, 0, 0, 0); ;
             popParams.SliceLength = new TimeSpan((int)set.ParamSliceLengthHours, 0, 0);
+            // the Weiss code had 33.89401 for max ts, not sure how generated. 
+            // I got 34.2467 using iterative solver in excel.
             popParams.MaxTempSuitability = set.ParamMaxTSNormaliser;
-            // max ts for default settings is 34.2467; the Weiss code had 33.89401 , not sure how generated. 
-            // I got this using iterative solver in excel.
+            popParams.SurvivalFunction = MossieMethods.SurvivalFunctions.Martens2;
+
             System.Console.WriteLine("Tile data loaded, computation beginning");
 
             float[][] tsOut = new float[numCells][];
@@ -256,7 +258,6 @@ namespace TempSuitability_CSharp
 
             Parallel.For(0, numCells, b, c =>
             {
-
                 if (lsMask[c] != 1)
                 {
                     // this cell is in the sea, no need to run, return as a special case a zero length result array
@@ -266,6 +267,15 @@ namespace TempSuitability_CSharp
                 {
                     int rownum = c / xSize;
                     int colnum = c % xSize;
+
+                    // cut
+                    int agg = 24;
+                    int humRow = (int)Math.Floor((double)rownum / agg);
+                    int humCol = (int)Math.Floor((double)colnum / agg);
+
+
+                    // end cut
+
                     GeographicCellLocation geogParams = new GeographicCellLocation();
                     geogParams.Latitude = lats[rownum];
                     geogParams.Longitude = lons[colnum];
@@ -293,7 +303,7 @@ namespace TempSuitability_CSharp
                        //     nd[i] = optimal; }
                         //tsModel.SetData(dd, nd, dates, _maxReader.NoDataValue.Value, false);
 
-                        if (!tsModel.SetData(dayData[c], nightData[c], dates, _maxReader.NoDataValue.Value, true))
+                        if (!tsModel.SetTempData(dayData[c], nightData[c], dates, _maxReader.NoDataValue.Value, true))
                         {
                             throw new ApplicationException("Pop goes the weasel");
                         };
