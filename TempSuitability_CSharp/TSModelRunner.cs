@@ -154,7 +154,13 @@ namespace TempSuitability_CSharp
                 for (int tileCol = 0; tileCol < nTilesX; tileCol++)
                 {
                     var tileNum = tileRow * nTilesX + tileCol + 1;
+                    var tilenameLocPart = "_r" + tileRow.ToString("D3") + "_c" + tileCol.ToString("D3") + ".tif";
 
+                    if (System.IO.Directory.EnumerateFiles(System.IO.Path.Combine(_outDir, runDir), "*" + tilenameLocPart).Count() != 0)
+                    {
+                        System.Console.WriteLine("Tile " + tileNum.ToString() + " appears to be already done, skipping");
+                        continue;
+                    }
                     int xOff = (int) pxOverall.WestPixelCoord + tileCol * TileSize;
                     int xEnd = xOff + TileSize;
                     int thisTileXSize = TileSize;
