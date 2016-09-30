@@ -57,7 +57,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup>
-    <StartupObject>TempSuitability_CSharp.TSModelRunner</StartupObject>
+    <StartupObject>TempSuitability_CSharp.TSModelMain</StartupObject>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="gdalconst_csharp, Version=1.0.5387.28601, Culture=neutral, PublicKeyToken=db5a52b08dc5b321, processorArchitecture=MSIL">
@@ -92,6 +92,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="FilenameDateParser_MODIS8Day.cs" />
+    <Compile Include="FilenameDateParser_SSESynopticRH.cs" />
     <Compile Include="GeographicCell.cs" />
     <Compile Include="IFilenameDateParser.cs" />
     <Compile Include="MosquitoPopulations.cs" />
@@ -111,6 +112,7 @@
     <Compile Include="TSModel.cs" />
     <Compile Include="TiffCubeReader.cs" />
     <Compile Include="TiffCubeWriter.cs" />
+    <Compile Include="TSModelMain.cs" />
     <Compile Include="TSModelRunner.cs" />
   </ItemGroup>
   <ItemGroup>
