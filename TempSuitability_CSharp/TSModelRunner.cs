@@ -253,11 +253,10 @@ namespace TempSuitability_CSharp
                 // set threads to 1 for easier step-through debugging or some other number to not hog the whole machine
                 b.MaxDegreeOfParallelism = (int)set.MaxThreads;
             }
-
             Parallel.For(0, numCells, b, c =>
             {
 
-                if (lsMask[c] != 1)
+                if (lsMask[c] != _maskValidValue)
                 {
                     // this cell is in the sea, no need to run, return as a special case a zero length result array
                     tsOut[c] = new float[0];
@@ -317,7 +316,7 @@ namespace TempSuitability_CSharp
             {
                 _outputDates = outputDates;
             }
-            else if (!_outputDates.SequenceEqual(outputDates))
+            else if (outputDates != null && !_outputDates.SequenceEqual(outputDates))
             {
                 throw new ApplicationException("Dates have changed between tiles somehow, this shouldn't happen...");
             }
@@ -340,7 +339,16 @@ namespace TempSuitability_CSharp
             {
                 throw new ArgumentException("Specified tile shape does not match the given number of cells");
             }
-            var nTiles = CellData.First(cd => cd.Length != 0).Length;
+            int nTiles;
+            try {
+                nTiles = CellData.First(cd => cd.Length != 0).Length;
+            }
+            catch
+            {
+                // either this whole tile was in the sea (but in that case the tile should have just been skipped) 
+                // or all the non-sea points had insufficient data to run the model. We'll just write 0 tiles out.
+                nTiles = 0;
+            }
             var tileArr = new float[nTiles][];
             var ndv = _maxReader.NoDataValue.Value;
             for (int b = 0; b < nTiles; b++)
