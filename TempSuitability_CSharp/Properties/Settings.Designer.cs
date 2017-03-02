@@ -25,7 +25,7 @@ namespace TempSuitability_CSharp.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("G:\\\\tmp_local\\\\LST_Day_5km_8day\\\\*.tif")]
+        [global::System.Configuration.DefaultSettingValueAttribute("G:\\tmp_local\\LST_Day_5km_8day\\*.tif")]
         public string LST_Day_Files {
             get {
                 return ((string)(this["LST_Day_Files"]));
@@ -34,7 +34,7 @@ namespace TempSuitability_CSharp.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("G:\\\\tmp_local\\\\LST_Night_5km_8day\\\\*.tif")]
+        [global::System.Configuration.DefaultSettingValueAttribute("G:\\tmp_local\\LST_Night_5km_8day\\*.tif")]
         public string LST_Night_Files {
             get {
                 return ((string)(this["LST_Night_Files"]));
@@ -43,7 +43,7 @@ namespace TempSuitability_CSharp.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("C:\\\\temp\\\\tsmodel\\\\5km\\\\local")]
+        [global::System.Configuration.DefaultSettingValueAttribute("C:\\temp\\tsmodel\\5km\\local\\survival_tests")]
         public string OutputFolder {
             get {
                 return ((string)(this["OutputFolder"]));
@@ -52,7 +52,7 @@ namespace TempSuitability_CSharp.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("12")]
+        [global::System.Configuration.DefaultSettingValueAttribute("-18")]
         public double WestLim {
             get {
                 return ((double)(this["WestLim"]));
@@ -61,7 +61,7 @@ namespace TempSuitability_CSharp.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("15")]
+        [global::System.Configuration.DefaultSettingValueAttribute("52")]
         public double EastLim {
             get {
                 return ((double)(this["EastLim"]));
@@ -70,7 +70,7 @@ namespace TempSuitability_CSharp.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("24")]
+        [global::System.Configuration.DefaultSettingValueAttribute("38")]
         public double NorthLim {
             get {
                 return ((double)(this["NorthLim"]));
@@ -79,7 +79,7 @@ namespace TempSuitability_CSharp.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("21")]
+        [global::System.Configuration.DefaultSettingValueAttribute("-35")]
         public double SouthLim {
             get {
                 return ((double)(this["SouthLim"]));
@@ -88,7 +88,7 @@ namespace TempSuitability_CSharp.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("Z:\\\\mastergrids\\\\Global_Masks\\\\Land_Sea_Masks\\\\CoastGlobal_5k.tif")]
+        [global::System.Configuration.DefaultSettingValueAttribute("Z:\\mastergrids\\Global_Masks\\Land_Sea_Masks\\CoastGlobal_5k.tif")]
         public string LS_Mask_File {
             get {
                 return ((string)(this["LS_Mask_File"]));
@@ -106,7 +106,7 @@ namespace TempSuitability_CSharp.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("1024")]
+        [global::System.Configuration.DefaultSettingValueAttribute("100")]
         public uint TileSizePx {
             get {
                 return ((uint)(this["TileSizePx"]));
@@ -160,7 +160,7 @@ namespace TempSuitability_CSharp.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("34.2467")]
+        [global::System.Configuration.DefaultSettingValueAttribute("1")]
         public double ParamMaxTSNormaliser {
             get {
                 return ((double)(this["ParamMaxTSNormaliser"]));
@@ -169,10 +169,35 @@ namespace TempSuitability_CSharp.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("0")]
+        [global::System.Configuration.DefaultSettingValueAttribute("1")]
         public ushort MaxThreads {
             get {
                 return ((ushort)(this["MaxThreads"]));
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("BayohParham")]
+        public string SurvivalFunction {
+            get {
+                return ((string)(this["SurvivalFunction"]));
+            }
+            set {
+                this["SurvivalFunction"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("C:\\Users\\zool1301.NDPH\\Documents\\Other_Data\\humidity_sse\\processed\\Synoptic_Month" +
+            "ly\\*.tif")]
+        public string HumidityFiles {
+            get {
+                return ((string)(this["HumidityFiles"]));
+            }
+            set {
+                this["HumidityFiles"] = value;
             }
         }
     }

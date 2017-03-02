@@ -62,6 +62,26 @@ namespace TempSuitability_CSharp
         /// </summary>
         public MossieMethods.SurvivalFunctions SurvivalFunction { get; set; }
 
-
-    }
+        /// <summary>
+        /// Does this population require humidity data in order to iterate, given the specified survival function?
+        /// </summary>
+        public bool RequiresHumidity
+        {
+            get
+            {
+                bool isHumidity;
+                switch (SurvivalFunction)
+                {
+                    case MossieMethods.SurvivalFunctions.BayohLunde:
+                    case MossieMethods.SurvivalFunctions.BayohParham:
+                        isHumidity = true;
+                        break;
+                    default:
+                        isHumidity = false;
+                        break;
+                }
+                return isHumidity;
+            }
+        }
+}
 }

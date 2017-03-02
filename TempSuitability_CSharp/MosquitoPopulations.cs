@@ -696,8 +696,12 @@ namespace TempSuitability_CSharp
     /// of days. The functions are all extracted from summaries published in :
     /// "How malaria models relate temperature to malaria transmission" (Lunde, Bayoh & Bernt Lindtjørn, 2013)
     /// DOI: 10.1186/1756-3305-6-20.
-    /// Only the functions which depend solely on temperature have been implemented as at the present time we do not 
-    /// have a suitable global temporally-varying relative humidity dataset.
+    /// All functions return a value between 0 and 1 representing a proportion of the existing population to survive 
+    /// a timeslice of the given length based on the input temperature (and humidity) values. This takes no account 
+    /// of natural lifespan i.e. if the requested timeslice is longer than a lifespan, that won't be accounted for.
+    /// Four of the functions depend only on temperature (in degrees celsius) and the other two also require 
+    /// relative humidity (in percent).
+    /// All take a "death temperature" as a hard upper limit for survival, for comparison with previous results. 
     /// </summary>
     static class MossieMethods
     {
@@ -710,7 +714,7 @@ namespace TempSuitability_CSharp
             BayohParham,
             BayohLunde
         }
-
+        //TempSuitability_CSharp.MossieMethods.SurvivalFunctions
         /// <summary>
         /// Implements the "Martens equation" for mosquito survival as a function of air temperature, published 
         /// as a PhD thesis at 
@@ -775,6 +779,7 @@ namespace TempSuitability_CSharp
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double GetSurvivingFraction_BayohMordecai(double sliceTemp, double sliceLengthDays, double deathTemp)
         {
+            // = morP at line 24 of mordecai.R
             if (sliceTemp > deathTemp)
             {
                 return 0;
@@ -808,7 +813,7 @@ namespace TempSuitability_CSharp
                 - 1.865e-2 * sliceTemp
                 + 7.238e-1;
             var f = Math.Pow(daily, sliceLengthDays);
-            return f;
+            return f < 0 ? 0 : f >= 1 ? 0 : f;
         }
 
         /// <summary>
@@ -825,12 +830,16 @@ namespace TempSuitability_CSharp
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double GetSurvivingFraction_BayohParham(double sliceTemp, double rhPercent, double sliceLengthDays, double deathTemp)
         {
+            if (sliceTemp > deathTemp)
+            {
+                return 0;
+            }
             var b0 = 0.00113 * Math.Pow(rhPercent, 2) - 0.158 * rhPercent - 6.61;
             var b1 = -2.32e-4 * Math.Pow(rhPercent, 2) + 0.0515 * rhPercent + 1.06;
             var b2 = 4e-6 * Math.Pow(rhPercent, 2) - 1.09e-3 * rhPercent - 0.0255;
             var daily = Math.Exp(-1 / ((b2 * Math.Pow(sliceTemp, 2)) + (b1 * sliceTemp) + b0));
             var f = Math.Pow(daily, sliceLengthDays);
-            return f;
+            return f < 0 ? 0 : f >= 1 ? 0 : f;
         }
 
         /// <summary>
@@ -846,14 +855,28 @@ namespace TempSuitability_CSharp
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double GetSurvivingFraction_BayohLunde(double sliceTemp, double rhPercent, double sliceLengthDays, double deathTemp)
         {
+            if (sliceTemp > deathTemp)
+            {
+                return 0;
+            }
             var fRH = 6.48007 + .69570 * (1 - Math.Exp(-0.06 * rhPercent));
             var cmn = 1 + (sliceTemp + 1) / 21;
-            var brack1 = Math.Pow(cmn, (2/3));
+            var brack1 = Math.Pow(cmn, (2.0/3));
             var brack2 = Math.Pow(cmn, 2);
             var pwr = 10 + brack1 * (brack2 - (cmn * 2) - fRH);
-            var daily = Math.Exp(pwr);
+            var alpha = Math.Exp(pwr); // neglecting the g term for mosquito size
+
+            var zeta = 6;
+            float[] zetafacs = new float[] { 1, 1, 2, 6, 24, 120 };
+            
+            double daily = 0;
+            for (int i = 0; i < zeta; i++)
+            {
+                daily += (Math.Pow(alpha, i) / zetafacs[i]) * Math.Exp(-alpha);
+            }
+            // given a fraction surviving one day, calculate the proportion surviving a sub-daily slice
             var f = Math.Pow(daily, sliceLengthDays);
-            return f;
+            return f < 0 ? 0 : f >= 1 ? 0 : f;
         }
     }
 }

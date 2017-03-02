@@ -59,6 +59,15 @@ namespace TempSuitability_CSharp
         /// </summary>
         public float? NoDataValue { get; private set; }
 
+        /// <summary>
+        /// Constructs a tiff cube reader against the geotiff files identified by the given file path,
+        /// which should of course include a wildcard somewhere if the reader is to know of more than one 
+        /// geotiff. The files should all have the same propoerties (size, resolution, nodata value) and 
+        /// should have names that can be parsed to extract the corresponding date, using an appropriate 
+        /// IFilenameDateParser object.
+        /// </summary>
+        /// <param name="FilepathWildcard"></param>
+        /// <param name="FilenameDateParserObject"></param>
         public TiffCubeReader(string FilepathWildcard, IFilenameDateParser FilenameDateParserObject)
         {
             m_FileWildCard = FilepathWildcard;
@@ -69,7 +78,27 @@ namespace TempSuitability_CSharp
                 PopulateRasterProperties();
             }
         }
+
+        /// <summary>
+        /// /// Get the longitudes of a range of cells within the horizontal size of this cube's images, specified in terms of number 
+        /// of pixels from the left (origin) longitude. Y components of the PixelLims are ignored.
+        /// </summary>
+        /// <param name="RelativePixelCoords"></param>
+        /// <returns></returns>
+        public double[] GetSubsetLongitudeCoords(PixelLims RelativePixelCoords)
+        {
+            var xOff = (int)RelativePixelCoords.WestPixelCoord;
+            var xSize = RelativePixelCoords.XSize;
+            return GetSubsetLongitudeCoords(xOff, xSize);
+        }
         
+        /// <summary>
+        /// Get the longitudes of a range of cells within the horizontal size of this cube's images, specified in terms of number 
+        /// of pixels from the left (origin) longitude.
+        /// </summary>
+        /// <param name="xOffset"></param>
+        /// <param name="xSize"></param>
+        /// <returns></returns>
         public double[] GetSubsetLongitudeCoords(int xOffset, int xSize)
         {
             if (xOffset > Shape.Item2)
@@ -85,6 +114,25 @@ namespace TempSuitability_CSharp
             Array.Copy(GlobalLonCoords, xOffset, outArr, 0, xSize);
             return outArr;
         }
+
+        /// <summary>
+        /// Get the latitudes of a range of cells within the vertical size of this cube's images, specified in terms of number 
+        /// of pixels from the top (origin) latitude. X components of the PixelLims are ignored.
+        /// </summary>
+        /// <param name="RelativePixelCoords"></param>
+        /// <returns></returns>
+        public double[] GetSubsetLatitudeCoords(PixelLims RelativePixelCoords)
+        {
+            var yOff = (int)RelativePixelCoords.NorthPixelCoord;
+            var ySize = RelativePixelCoords.YSize;
+            return GetSubsetLongitudeCoords(yOff, ySize);
+        }
+        /// <summary>
+        /// Get the latitudes of a range of cells within the vertical size of this cube's images, specified in terms of number 
+        /// of pixels from the top (origin) latitude.
+        /// </summary>
+        /// <param name="RelativePixelCoords"></param>
+        /// <returns></returns>
         public double[] GetSubsetLatitudeCoords(int yOffset, int ySize)
         {
             if (yOffset > Shape.Item1)
@@ -100,19 +148,27 @@ namespace TempSuitability_CSharp
             Array.Copy(GlobalLatCoords, yOffset, outArr, 0, ySize);
             return outArr;
         }
+
+        /// <summary>
+        /// Returns the GDAL geotransform of a subset (clipped rectangle) of this tiff cube , specified in terms of pixel 
+        /// coordinate bounding box from the origin.
+        /// </summary>
+        /// <param name="TileCoords"></param>
+        /// <returns></returns>
         public double[] GetSubsetGeoTransform(PixelLims TileCoords)
         {
             string firstFilename = m_FileDates.First().Value;
             var res = GDAL_Operations.GetClippedGeoTransform(firstFilename, TileCoords);
             return res;
         }
+
         /// <summary>
         /// Read the data for all cells within the specified pixel offsets, across the first band of all the rasters.
         /// Returns a jagged array with one element for each cell, each of which contains the all of the values for 
         /// that cell (location) across time. The cells are in the order given by iterating through the values of 
         /// Longitude within the values of Latitude (i.e. latitude on outer loop, northwestern cell first, through 
         /// all cells of that latitude, then moving down until south eastern cell is reached).
-        /// The values at each cell correspond in order to Filedates.
+        /// At each cell, the value array has one value for each date given by Filedates, in the same order.
         /// </summary>
         /// <param name="xOffset"></param>
         /// <param name="yOffset"></param>
@@ -142,7 +198,9 @@ namespace TempSuitability_CSharp
             int nbands = m_FileDates.Count;
 
             var cellArr = new float[npx][];
-
+            // we can't create arrays of more than 2Gb. 
+            // If we can, read all the files into a single flat array before transposing it,
+            // as accessing this for transposition should be marginally more efficient...
             if (((long)npx * nbands * 4) < (2 ^ 31))
             {
                 float[] tileFlatArr = ReadRegionAcrossFiles_Flat(xOffset, yOffset, xSize, ySize);
@@ -161,6 +219,8 @@ namespace TempSuitability_CSharp
                 }
 
             }
+            /// ... otherwise if the array would be more than 2Gb, read to a jagged array with one element 
+            /// for each file. (And if you're reading more than 2Gb for each file, then you're on your own).
             else
             {
                 float[][] tileFlatArr = ReadRegionAcrossFiles_MP(xOffset, yOffset, xSize, ySize);
@@ -177,16 +237,14 @@ namespace TempSuitability_CSharp
                         }
                     }
                 }
-
             }
-
             return cellArr;
         }
 
         /// <summary>
         /// Read the values within the specified pixel offsets from the first band of all this TiffCubeReader's rasters,
         /// returning them as a 1-D array in X,Y,Z order (i.e. leftmost pixel of first row of first file to rightmost 
-        /// pixel of last row of last file)
+        /// pixel of last row of last file). Will fail if xSize * ySize * n Files * 4 > 2^31.
         /// </summary>
         /// <param name="xOffset"></param>
         /// <param name="yOffset"></param>
@@ -304,7 +362,7 @@ namespace TempSuitability_CSharp
 
         /// <summary>
         /// Parse the dates for all files matching the given wildcard, and store these against the 
-        /// filenames in a sorted (by date) list
+        /// filenames in a sorted (by date) list. Parses using the IFilenameDateParser given at construction.
         /// </summary>
         private void PopulateFilenamesAndDates()
         {
@@ -323,7 +381,8 @@ namespace TempSuitability_CSharp
         /// <summary>
         /// Parse key information about the first raster: the geotransform, shape (n pixels X and Y), and 
         /// nodata value (of the first band). Also calculate the latitude of each row and the longitude of 
-        /// each column.
+        /// each column. The properties of subsequent rasters will be checked in the public read functions 
+        /// and if they don't match this first one an exception will occur there.
         /// </summary>
         private void PopulateRasterProperties()
         {

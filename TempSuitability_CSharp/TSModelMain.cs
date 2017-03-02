@@ -12,7 +12,7 @@ namespace TempSuitability_CSharp
         {
             Environment.SetEnvironmentVariable("PATH", Environment.GetEnvironmentVariable("PATH")
       + ";C:\\Users\\zool1301.NDPH\\Documents\\Code_General\\temp-suitability\\TempSuitability_CSharp\\packages\\GDAL.Native.1.11.1\\gdal\\x64");
-            string maskPath, dayPath, nightPath, outDir;
+            string maskPath, dayPath, nightPath, outDir, humPath;
             int maskValidValue;
             try
             {
@@ -21,6 +21,11 @@ namespace TempSuitability_CSharp
                 nightPath = Properties.Settings.Default.LST_Night_Files;
                 outDir = Properties.Settings.Default.OutputFolder;
                 maskValidValue = Properties.Settings.Default.MaskValidValue;
+                if (Properties.Settings.Default.HumidityFiles != "")
+                {
+                    humPath = Properties.Settings.Default.HumidityFiles;
+                }
+                else { humPath = null; }
                 /* args:  "\\map-fs1.ndph.ox.ac.uk\map_data\mastergrids\Global_Masks\Land_Sea_Masks\CoastGlobal_5k.tif" 
                 "\\map-fs1.ndph.ox.ac.uk\map_data\mastergrids\MODIS_Global\MOD11A2_LST\LST_Day\5km\8-Daily\*Max.tif" 
                 "\\map-fs1.ndph.ox.ac.uk\map_data\mastergrids\MODIS_Global\MOD11A2_LST\LST_Night\5km\8-Daily\*Min.tif"
@@ -40,11 +45,20 @@ namespace TempSuitability_CSharp
                 nightPath = "G:\\tmp_local\\LST_Night_5km_8day\\*.tif";
                 outDir = "C:\\Temp\\TSModel\\5km";
                 maskValidValue = 1;
+                humPath = null;
 
             }
-
-            TSModelRunner runner = new TSModelRunner(new FilenameDateParser_MODIS8Day(), maskPath, dayPath, nightPath, outDir, maskValidValue);
-
+            TSModelRunner runner;
+            if (humPath == null)
+            {
+                runner = new TSModelRunner(new FilenameDateParser_MODIS8Day(), 
+                    maskPath, dayPath, nightPath, outDir, maskValidValue);
+            }
+            else
+            {
+                runner = new TSModelRunner(new FilenameDateParser_MODIS8Day(), new FilenameDateParser_SSESynopticRH(), 
+                    maskPath, dayPath, nightPath, humPath, outDir, maskValidValue);
+            }
             Stopwatch sw = new Stopwatch();
             sw.Start();
             //runner.RunAllTiles(-18, 52, 38, -35, 512);
@@ -55,7 +69,9 @@ namespace TempSuitability_CSharp
             n = Properties.Settings.Default.NorthLim;
             s = Properties.Settings.Default.SouthLim;
             size = (int)Properties.Settings.Default.TileSizePx;
-            runner.RunAllTiles(w, e, n, s, size);
+            var lims = new ProjectedLims(w, e, n, s);
+            runner.RunAllTiles(lims, size);
+            //runner.RunAllTiles(w, e, n, s, size);
             //runner.RunAllTiles(13,14,6,5,512);
             sw.Stop();
             Console.WriteLine("Time elapsed running model = {0}", sw.Elapsed);

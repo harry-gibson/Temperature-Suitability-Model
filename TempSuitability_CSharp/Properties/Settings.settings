@@ -3,34 +3,34 @@
   <Profiles />
   <Settings>
     <Setting Name="LST_Day_Files" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">G:\\tmp_local\\LST_Day_5km_8day\\*.tif</Value>
+      <Value Profile="(Default)">G:\tmp_local\LST_Day_5km_8day\*.tif</Value>
     </Setting>
     <Setting Name="LST_Night_Files" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">G:\\tmp_local\\LST_Night_5km_8day\\*.tif</Value>
+      <Value Profile="(Default)">G:\tmp_local\LST_Night_5km_8day\*.tif</Value>
     </Setting>
     <Setting Name="OutputFolder" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">C:\\temp\\tsmodel\\5km\\local</Value>
+      <Value Profile="(Default)">C:\temp\tsmodel\5km\local\survival_tests</Value>
     </Setting>
     <Setting Name="WestLim" Type="System.Double" Scope="Application">
-      <Value Profile="(Default)">12</Value>
+      <Value Profile="(Default)">-18</Value>
     </Setting>
     <Setting Name="EastLim" Type="System.Double" Scope="Application">
-      <Value Profile="(Default)">15</Value>
+      <Value Profile="(Default)">52</Value>
     </Setting>
     <Setting Name="NorthLim" Type="System.Double" Scope="Application">
-      <Value Profile="(Default)">24</Value>
+      <Value Profile="(Default)">38</Value>
     </Setting>
     <Setting Name="SouthLim" Type="System.Double" Scope="Application">
-      <Value Profile="(Default)">21</Value>
+      <Value Profile="(Default)">-35</Value>
     </Setting>
     <Setting Name="LS_Mask_File" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">Z:\\mastergrids\\Global_Masks\\Land_Sea_Masks\\CoastGlobal_5k.tif</Value>
+      <Value Profile="(Default)">Z:\mastergrids\Global_Masks\Land_Sea_Masks\CoastGlobal_5k.tif</Value>
     </Setting>
     <Setting Name="MaskValidValue" Type="System.UInt16" Scope="Application">
       <Value Profile="(Default)">1</Value>
     </Setting>
     <Setting Name="TileSizePx" Type="System.UInt32" Scope="Application">
-      <Value Profile="(Default)">1024</Value>
+      <Value Profile="(Default)">100</Value>
     </Setting>
     <Setting Name="ParamSliceLengthHours" Type="System.UInt16" Scope="Application">
       <Value Profile="(Default)">2</Value>
@@ -48,10 +48,16 @@
       <Value Profile="(Default)">16</Value>
     </Setting>
     <Setting Name="ParamMaxTSNormaliser" Type="System.Double" Scope="Application">
-      <Value Profile="(Default)">34.2467</Value>
+      <Value Profile="(Default)">1</Value>
     </Setting>
     <Setting Name="MaxThreads" Type="System.UInt16" Scope="Application">
-      <Value Profile="(Default)">0</Value>
+      <Value Profile="(Default)">1</Value>
+    </Setting>
+    <Setting Name="SurvivalFunction" Type="System.String" Scope="User">
+      <Value Profile="(Default)">BayohParham</Value>
+    </Setting>
+    <Setting Name="HumidityFiles" Type="System.String" Scope="User">
+      <Value Profile="(Default)">C:\Users\zool1301.NDPH\Documents\Other_Data\humidity_sse\processed\Synoptic_Monthly\*.tif</Value>
     </Setting>
   </Settings>
 </SettingsFile>

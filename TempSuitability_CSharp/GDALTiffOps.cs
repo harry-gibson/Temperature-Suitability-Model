@@ -7,6 +7,12 @@ using OSGeo.GDAL;
 
 namespace TempSuitability_CSharp
 {
+    /// <summary>
+    /// Implements various operations for reading GDAL raster format datasets, and writing geotiff files using GDAL
+    /// Relies on the GDAL library and its SWIG bindings, which can be 
+    /// installed via NuGet on windows. All functions are static and do not hold open datasets - datasets are to be specified 
+    /// simply with a string pathname.
+    /// </summary>
     static class GDAL_Operations
     {
         static GDAL_Operations()
@@ -67,6 +73,13 @@ namespace TempSuitability_CSharp
             return null;
         }
 
+        /// <summary>
+        /// Returns the geotransform of a clipped subsection (specified in pixel coordinates relative to the dataset's origin) 
+        /// of the given GDAL dataset
+        /// </summary>
+        /// <param name="gdalDataset"></param>
+        /// <param name="subsetCoords"></param>
+        /// <returns></returns>
         public static double[] GetClippedGeoTransform(string gdalDataset, PixelLims subsetCoords)
         {
             if (!System.IO.File.Exists(gdalDataset))
@@ -94,6 +107,17 @@ namespace TempSuitability_CSharp
             return clippedGT;
         }
 
+        /// <summary>
+        /// Returns the pixel coordinates (relative to the dataset's origin) of a given subset of the specified dataset.
+        /// The west, east, north, and south parameters need to be in the units of the dataset's coordinate system, this is assumed to be degrees 
+        /// but it shouldn't actually need to be.
+        /// </summary>
+        /// <param name="gdalDataset"></param>
+        /// <param name="westDegrees"></param>
+        /// <param name="eastDegrees"></param>
+        /// <param name="northDegrees"></param>
+        /// <param name="southDegrees"></param>
+        /// <returns></returns>
         public static PixelLims CalculatePixelCoordsOfBlock(string gdalDataset, double westDegrees, double eastDegrees, double northDegrees, double southDegrees)
         {
             Dataset ds = Gdal.Open(gdalDataset, Access.GA_ReadOnly);
@@ -107,11 +131,16 @@ namespace TempSuitability_CSharp
             var northLimit = inGT[3];
             return CalculatePixelCoordsOfBlock(inGT, westDegrees, eastDegrees, northDegrees, southDegrees, westLimit, northLimit);
         }
-
+        
         /// <summary>
-        /// Returns the pixel coordinates of a block of the requested lat / long coordinates, within an image of the given geotransform. 
+        /// Returns the pixel coordinates (relative to the dataset's origin) of a given subset of the specified dataset.
+        /// The west, east, north, and south parameters need to be in the units of the dataset's coordinate system, this is assumed to be degrees 
+        /// but it shouldn't actually need to be.
         /// If the relativeTo*Limit parameters are provided then the coordinates will be relative to this origin rather than the image's true 
-        /// origin - use this if wanting to output an image with a different overall extent to the input
+        /// origin - use this if wanting to output an image with a different overall extent to the input.
+        /// If the given lat / long values do not align precisely with the boundary of a cell in the given geotransform, then the values returned 
+        /// will be rounded "outwards" to include the pixels within which the given lat/long values fall. i.e. north and west coords will be rounded 
+        /// downwards, and south and east coords will be rounded upwards.
         /// </summary>
         /// <param name="geoTransform"></param>
         /// <param name="westDegrees"></param>
@@ -138,12 +167,36 @@ namespace TempSuitability_CSharp
             {
                 relativeToNorthernLimit = geoTransform[3];
             }
+            
             var x0 = (uint)((westDegrees - relativeToWesternLimit) / resX);
             var x1 = (uint)(((eastDegrees - relativeToWesternLimit) / resX) + 0.5);
             var y0 = (uint)((relativeToNorthernLimit - northDegrees) / (-resY));
             var y1 = (uint)(((relativeToNorthernLimit - southDegrees) / (-resY)) + 0.5);
             return new PixelLims(x0, x1, y0, y1);
         }
+
+        public static int[] GetPixelCoordsOfLocation(double[] geoTransform, double lonDegrees, double latDegrees)
+        {
+            var resX = geoTransform[1];
+            var resY = geoTransform[5];
+            var westernLimit = geoTransform[0];
+            var northernLimit = geoTransform[3];
+            var x0 = (int)((lonDegrees - westernLimit) / resX);
+            var y0 = (int)((northernLimit - latDegrees) / (-resY));
+            return new int[] { x0, y0 };
+        }
+
+        public static double[] GetLocationOfPixelCoords(double[] geoTransform, int xOffset, int yOffset)
+        {
+            var resX = geoTransform[1];
+            var resY = geoTransform[5];
+            var westernLimit = geoTransform[0];
+            var northernLimit = geoTransform[3];
+            var lon = westernLimit + xOffset * resX;
+            var lat = northernLimit + yOffset * resY; // resY will be a negative value
+            return new double[] { lon, lat };
+        }
+
         public static Tuple<int,int> GetRasterShape(string gdalDataset)
         {
             if (!System.IO.File.Exists(gdalDataset))
@@ -420,12 +473,19 @@ namespace TempSuitability_CSharp
             return ds;
         }
     }
+
+    /// <summary>
+    /// Simply stores four unsigned integer coordinates to represent pixel-coordinate bounding boxes.
+    /// East should be greater than West and South should be greater than North (i.e. origin is top left).
+    /// </summary>
     public class PixelLims
     {
         public uint WestPixelCoord { get; }
         public uint EastPixelCoord { get; }
         public uint NorthPixelCoord { get; }
         public uint SouthPixelCoord { get; }
+        public int XSize { get { return (int)(EastPixelCoord - WestPixelCoord); } }
+        public int YSize { get { return (int)(SouthPixelCoord - NorthPixelCoord); } }
         public PixelLims(uint West, uint East, uint North, uint South)
         {
             this.WestPixelCoord= West;
@@ -439,11 +499,30 @@ namespace TempSuitability_CSharp
             {
                 throw new ArgumentException("Values must be positive");
             }
+            //this:((uint)West, (uint)East, (uint)North, (uint)South);
             this.WestPixelCoord = (uint)West;
             this.EastPixelCoord = (uint)East;
             this.NorthPixelCoord = (uint)North;
             this.SouthPixelCoord = (uint)South;
         }
+    }
+
+    public class ProjectedLims
+    {
+        public double WestPixelCoord { get; }
+        public double EastPixelCoord { get; }
+        public double NorthPixelCoord { get; }
+        public double SouthPixelCoord { get; }
+        public double XSize { get { return (EastPixelCoord - WestPixelCoord); } }
+        public double YSize { get { return (SouthPixelCoord - NorthPixelCoord); } }
+        public ProjectedLims(double West, double East, double North, double South)
+        {
+            this.WestPixelCoord = West;
+            this.EastPixelCoord = East;
+            this.NorthPixelCoord = North;
+            this.SouthPixelCoord = South;
+        }
+        
     }
     
 }

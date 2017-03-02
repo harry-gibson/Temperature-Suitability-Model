@@ -29,7 +29,7 @@ namespace TempSuitability_CSharp
             try
             {
 
-                string pat = @"_(\w+)$";
+                string pat = @"SSE_(\w+)$";
                 Regex r = new Regex(pat);
                 string basename = System.IO.Path.GetFileNameWithoutExtension(Filename);
                 string monthtxt = r.Match(basename).Groups[1].ToString();

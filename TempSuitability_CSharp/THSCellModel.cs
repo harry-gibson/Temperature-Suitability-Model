@@ -10,7 +10,6 @@ namespace TempSuitability_CSharp
     class THSCellModel:TSCellModel
     {
         protected IInterpolation _HumiditySpline;
-        protected DateTime[] m_InputHumidityDates;
         protected bool _CanRunHum = false;
         protected new ITempHumidityIterablePopulation m_Pop;
         
@@ -32,6 +31,13 @@ namespace TempSuitability_CSharp
             m_Pop = new ConfigurableDecayPopulation(modelConfigParams);
         }
 
+        /// <summary>
+        /// Loads the humidity data when it is provided as temporally-dynamic data. 
+        /// The temperature series must be loaded first! The humidity series does not have to span the same 
+        /// period as the temperature series, but it is recommended to be at least as long as the temperature 
+        /// series as otherwise the spline extrapolation of the humidity data into the range of the temperature 
+        /// data may be dodgy!
+        /// </summary>
         public bool SetHumidityData (float[] HumidityPercentValues, DateTime[] HumidityDatePoints, float HumidityNoDataValue)
         {
             if (HumidityDatePoints.Length != HumidityPercentValues.Length)
@@ -74,6 +80,39 @@ namespace TempSuitability_CSharp
             _HumiditySpline = CubicSpline.InterpolateNaturalSorted(validHumidityDates.ToArray(), validHumidities.ToArray());
             _CanRunHum = true;
             return true;
+        }
+
+        /// <summary>
+        /// Loads the humidity data when it is provided as synoptic data, i.e. one point for each calendar month,
+        /// all years assumed to be identical. This will repeat the supplied synoptic series over the full timespan 
+        /// of the model run as defined by the temperature series. The temperature series must be loaded first!
+        /// </summary>
+        /// <param name="HumidityPercentValues"></param>
+        /// <param name="HumidityNoDataValue"></param>
+        /// <returns></returns>
+        public bool SetSynopticHumidityData(float[] HumidityPercentValues, float HumidityNoDataValue)
+        {
+            if(HumidityPercentValues.Length != 12)
+            {
+                return false;
+            }
+            if (m_InputTemperatureDates.Length == 0)
+            {
+                return false;
+            }
+            // get a datetime object for the 15th of every month spanned by the input non-synoptic temperature data
+            var tempDataMonths = m_InputTemperatureDates             // all the input dates (e.g. 8 daily)
+                   .Select(d => new DateTime(d.Year, d.Month, 15))   // change each of them to the first of that month
+                   .Distinct()                                      // get unique
+                   .OrderBy(d => d)                                 // sort
+                   .ToArray();                                      // return as array
+            var nMonths = tempDataMonths.Length;
+            var humRepeatedSeries = new float[nMonths];
+            for (int i = 0; i < nMonths; i++)
+            {
+                humRepeatedSeries[i] = HumidityPercentValues[tempDataMonths[i].Month-1];
+            }
+            return SetHumidityData(humRepeatedSeries, tempDataMonths, HumidityNoDataValue);
         }
 
         public new float[] RunModel()
