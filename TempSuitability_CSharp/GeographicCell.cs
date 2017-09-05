@@ -161,7 +161,9 @@ namespace TempSuitability_CSharp
             }
             time /= 15;
             time = time + rightAscension - (0.06571 * timeInit) - 6.622;
-            time = time - longitude_hr;
+            // this would put the time into UTC
+            // time = time - longitude_hr;
+            // but we don't want to do that as we will iterate throug hours of the day 0-24 i.e. local time 
             if (time > 24)
             {
                 time -= 24;
