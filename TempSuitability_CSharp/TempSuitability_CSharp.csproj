@@ -81,6 +81,7 @@
       <Private>True</Private>
     </Reference>
     <Reference Include="System" />
+    <Reference Include="System.configuration" />
     <Reference Include="System.Core" />
     <Reference Include="System.Numerics" />
     <Reference Include="System.Xml.Linq" />
@@ -91,7 +92,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="FilenameDateParser_MODIS8Day.cs" />
+    <Compile Include="AppConfig.cs" />
+    <Compile Include="FilenameDateParsers.cs" />
     <Compile Include="GeographicCell.cs" />
     <Compile Include="IFilenameDateParser.cs" />
     <Compile Include="MosquitoPopulations.cs" />

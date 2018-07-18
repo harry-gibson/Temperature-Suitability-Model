@@ -25,91 +25,10 @@ namespace TempSuitability_CSharp.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("G:\\\\tmp_local\\\\LST_Day_5km_8day\\\\*.tif")]
-        public string LST_Day_Files {
-            get {
-                return ((string)(this["LST_Day_Files"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("G:\\\\tmp_local\\\\LST_Night_5km_8day\\\\*.tif")]
-        public string LST_Night_Files {
-            get {
-                return ((string)(this["LST_Night_Files"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("C:\\\\temp\\\\tsmodel\\\\5km\\\\local")]
-        public string OutputFolder {
-            get {
-                return ((string)(this["OutputFolder"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("12")]
-        public double WestLim {
-            get {
-                return ((double)(this["WestLim"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("15")]
-        public double EastLim {
-            get {
-                return ((double)(this["EastLim"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("24")]
-        public double NorthLim {
-            get {
-                return ((double)(this["NorthLim"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("21")]
-        public double SouthLim {
-            get {
-                return ((double)(this["SouthLim"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("Z:\\\\mastergrids\\\\Global_Masks\\\\Land_Sea_Masks\\\\CoastGlobal_5k.tif")]
-        public string LS_Mask_File {
-            get {
-                return ((string)(this["LS_Mask_File"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("1")]
         public ushort MaskValidValue {
             get {
                 return ((ushort)(this["MaskValidValue"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("1024")]
-        public uint TileSizePx {
-            get {
-                return ((uint)(this["TileSizePx"]));
             }
         }
         
@@ -169,10 +88,109 @@ namespace TempSuitability_CSharp.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("0")]
+        [global::System.Configuration.DefaultSettingValueAttribute("J:\\MOD11A2_Gapfilled_Output\\LST_Day\\Output_Final_30k_2030pc\\*_Data.tif")]
+        public string Max_Temp_Files {
+            get {
+                return ((string)(this["Max_Temp_Files"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("J:\\MOD11A2_Gapfilled_Output\\LST_Night\\Output_Final_30k_2030pc\\*_Data.tif")]
+        public string Min_Temp_Files {
+            get {
+                return ((string)(this["Min_Temp_Files"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("C:\\temp\\tsmodel\\1km\\local\\martens2_1k_global_fixhr")]
+        public string OutputFolder {
+            get {
+                return ((string)(this["OutputFolder"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("-60")]
+        public double WestLim {
+            get {
+                return ((double)(this["WestLim"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("60")]
+        public double EastLim {
+            get {
+                return ((double)(this["EastLim"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("85")]
+        public double NorthLim {
+            get {
+                return ((double)(this["NorthLim"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("-60")]
+        public double SouthLim {
+            get {
+                return ((double)(this["SouthLim"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("Z:\\mastergrids\\Global_Masks\\Land_Sea_Masks\\CoastGlobal.tiff")]
+        public string LS_Mask_File {
+            get {
+                return ((string)(this["LS_Mask_File"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("2000")]
+        public uint TileSizePx {
+            get {
+                return ((uint)(this["TileSizePx"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("8")]
         public ushort MaxThreads {
             get {
                 return ((ushort)(this["MaxThreads"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool Max_Temp_Convert_From_LST {
+            get {
+                return ((bool)(this["Max_Temp_Convert_From_LST"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool Min_Temp_Convert_From_LST {
+            get {
+                return ((bool)(this["Min_Temp_Convert_From_LST"]));
             }
         }
     }
