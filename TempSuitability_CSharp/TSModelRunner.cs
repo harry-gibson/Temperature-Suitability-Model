@@ -18,45 +18,33 @@ namespace TempSuitability_CSharp
         private readonly float _maskValidValue;
         private readonly float _maskNDV;
         private DateTime[] _outputDates;
-        static void Main(string[] args)
+
+        static int Main(string[] args)
         {
+            setConfigFileAtRuntime(args);
             Environment.SetEnvironmentVariable("PATH", Environment.GetEnvironmentVariable("PATH")
       + ";C:\\Users\\zool1301.NDPH\\Documents\\Code_General\\temp-suitability\\TempSuitability_CSharp\\packages\\GDAL.Native.1.11.1\\gdal\\x64");
-            string maskPath, dayPath, nightPath, outDir;
+            string maskPath, maxTempsPath, minTempsPath, outDir;
             int maskValidValue;
             try {
                 maskPath = Properties.Settings.Default.LS_Mask_File;
-                dayPath = Properties.Settings.Default.LST_Day_Files;
-                nightPath = Properties.Settings.Default.LST_Night_Files;
+                maxTempsPath = Properties.Settings.Default.Max_Temp_Files;
+                minTempsPath = Properties.Settings.Default.Min_Temp_Files;
                 outDir = Properties.Settings.Default.OutputFolder;
                 maskValidValue = Properties.Settings.Default.MaskValidValue;
-                /* args:  "\\map-fs1.ndph.ox.ac.uk\map_data\mastergrids\Global_Masks\Land_Sea_Masks\CoastGlobal_5k.tif" 
-                "\\map-fs1.ndph.ox.ac.uk\map_data\mastergrids\MODIS_Global\MOD11A2_LST\LST_Day\5km\8-Daily\*Max.tif" 
-                "\\map-fs1.ndph.ox.ac.uk\map_data\mastergrids\MODIS_Global\MOD11A2_LST\LST_Night\5km\8-Daily\*Min.tif"
-                "C:\temp\tsmodel"
-                */
+                Console.WriteLine("Got temps: " + maxTempsPath);
+                //return 0;
             }
             catch
             {
-                //maskPath = "\\\\map-fs1.ndph.ox.ac.uk\\map_data\\mastergrids\\Global_Masks\\Land_Sea_Masks\\CoastGlobal.tiff";
-                //dayPath = "F:\\MOD11A2_Gapfilled_Output\\LST_Day\\Output_Final_30k_2030pc\\*Data.tif";
-                //nightPath = "F:\\MOD11A2_Gapfilled_Output\\LST_Night\\Output_Final_30k_2030pc\\*Data.tif";
-                //outDir = "C:\\Temp\\TSModel";
-                //maskValidValue = 1;
-
-                maskPath = "\\\\map-fs1.ndph.ox.ac.uk\\map_data\\mastergrids\\Global_Masks\\Land_Sea_Masks\\CoastGlobal_5k.tif";
-                dayPath = "G:\\tmp_local\\LST_Day_5km_8day\\*tif";
-                nightPath = "G:\\tmp_local\\LST_Night_5km_8day\\*.tif";
-                outDir = "C:\\Temp\\TSModel\\5km";
-                maskValidValue = 1;
-               
+                Console.WriteLine("Could not find paths specification in config file");
+                return 1;
             }
 
-            TSModelRunner runner = new TSModelRunner(new FilenameDateParser_MODIS8Day(), maskPath, dayPath, nightPath, outDir, maskValidValue);
+            TSModelRunner runner = new TSModelRunner(new FilenameDateParser_Mastergrid(), maskPath, maxTempsPath, minTempsPath, outDir, maskValidValue);
 
             Stopwatch sw = new Stopwatch();
             sw.Start();
-            //runner.RunAllTiles(-18, 52, 38, -35, 512);
             double e, w, n, s;
             int size;
             w = Properties.Settings.Default.WestLim;
@@ -65,13 +53,31 @@ namespace TempSuitability_CSharp
             s = Properties.Settings.Default.SouthLim;
             size = (int)Properties.Settings.Default.TileSizePx;
             runner.RunAllTiles(w, e, n, s, size);                                                                                                                                                               
-            //runner.RunAllTiles(13,14,6,5,512);
+            
             sw.Stop();
             Console.WriteLine("Time elapsed running model = {0}", sw.Elapsed);
             Console.ReadKey();
-            
-          
+            return 0;
         }
+
+        static void setConfigFileAtRuntime(string[] args)
+        {
+            string runtimeConfigFile;
+            if (args.Length == 0)
+            {
+                Console.WriteLine("Please specify a config file:");
+                Console.Write("> ");
+                runtimeConfigFile = Console.ReadLine();
+            }
+            else
+            {
+                runtimeConfigFile = args[0];
+            }
+            AppConfig.Change(runtimeConfigFile);
+        }
+        // see also https://www.codeproject.com/Articles/14465/Specify-a-Configuration-File-at-Runtime-for-a-C-Co
+
+
         private TSModelRunner(IFilenameDateParser _parser, string maskPath, string dayPath, string nightPath, string outDir, int maskValidValue)
         {
             _fnParser = _parser;
@@ -196,7 +202,7 @@ namespace TempSuitability_CSharp
                 }
             }
         }
-        
+
         /// <summary>
         /// Runs a temperature suitability model for all pixels in a region specified by pixel limits.
         /// Output is a jagged array with one value for each cell starting at top left and then row by 
@@ -252,6 +258,38 @@ namespace TempSuitability_CSharp
             {
                 // set threads to 1 for easier step-through debugging or some other number to not hog the whole machine
                 b.MaxDegreeOfParallelism = (int)set.MaxThreads;
+                //System.Threading.ThreadPool.SetMaxThreads(set.MaxThreads, set.MaxThreads);
+                //System.Threading.ThreadPool.SetMinThreads(set.MinThreads, set.MinThreads);
+
+            }
+            int testnum = 0;
+            while (outputDates == null && testnum < numCells)
+            {
+                // if we haven't got at least 50% of the data and 100+ points it's probably crap
+                // this doesn't affect the date calculation but the spline will throw an error 
+                // on initialisation
+                var nValid = Math.Min(
+                    dayData[testnum].Count(v => v != _maxReader.NoDataValue),
+                    nightData[testnum].Count(v => v != _minReader.NoDataValue));
+                if (nValid < nFiles / 2 || nValid < 100)
+                {
+                    testnum += 1;
+                    continue;
+                }
+                // set up a dummy model purely to parse the output dates (that they will all share)
+                // avoids the need to test for the first one to do this in the parallel loop, which needs a lock,
+                // which slows things right down with >>20 cores
+                TSCellModel tsModel = new TSCellModel(
+                popParams, 
+                new GeographicCellLocation() {Latitude=lats[0], Longitude=lons[0]}, 
+                PopulationTypes.Pointers);
+                if (!tsModel.SetData(dayData[testnum], nightData[testnum], dates, _maxReader.NoDataValue.Value, 
+                    set.Max_Temp_Convert_From_LST, set.Min_Temp_Convert_From_LST))
+                {
+                    throw new ApplicationException("Pop goes the weasel");
+                };
+                outputDates = tsModel.OutputDates;
+                break;
             }
             Parallel.For(0, numCells, b, c =>
             {
@@ -292,7 +330,8 @@ namespace TempSuitability_CSharp
                        //     nd[i] = optimal; }
                         //tsModel.SetData(dd, nd, dates, _maxReader.NoDataValue.Value, false);
 
-                        if (!tsModel.SetData(dayData[c], nightData[c], dates, _maxReader.NoDataValue.Value, true))
+                        if (!tsModel.SetData(dayData[c], nightData[c], dates, _maxReader.NoDataValue.Value, 
+                            set.Max_Temp_Convert_From_LST, set.Min_Temp_Convert_From_LST))
                         {
                             throw new ApplicationException("Pop goes the weasel");
                         };
@@ -300,14 +339,14 @@ namespace TempSuitability_CSharp
                         float[] tsCell = tsModel.RunModel();
                         int nOutputPoints = tsCell.Length;
                         tsOut[c] = tsCell;
-                        lock (_lockobj) // ensure only 1 thread makes this check 
+                        /*lock (_lockobj) // ensure only 1 thread makes this check 
                         {
                             // calculate and record the dates of the outputs for an arbitrary one of the cell models
                             if (outputDates == null)
                             {
                                 outputDates = tsModel.OutputDates;
                             }
-                        }
+                        }*/
                     }
                 }
             }

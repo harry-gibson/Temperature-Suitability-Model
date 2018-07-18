@@ -58,19 +58,28 @@ namespace TempSuitability_CSharp
                 var startDay = m_InputTemperatureDates.First();
                 var endDay = m_InputTemperatureDates.Last();
                 var mainRunStartDate = startDay + modelParams.MosquitoLifespanDays;
-                var outMonths = m_InputTemperatureDates             // all the input dates (e.g. 8 daily)
+                var firstOfMonth = new DateTime(mainRunStartDate.Year, mainRunStartDate.Month, 1);
+                var outMonths = new List<DateTime>();
+                
+                while (firstOfMonth < endDay)
+                {
+                    outMonths.Add(firstOfMonth);
+                    firstOfMonth = firstOfMonth.AddMonths(1);
+                }
+                /*var outMonths = m_InputTemperatureDates             // all the input dates (e.g. 8 daily)
                    .Where(d => d >= mainRunStartDate)               // the input dates after the first lifespan
                    .Select(d => new DateTime(d.Year, d.Month, 1))   // change each of them to the first of that month
                    .Distinct()                                      // get unique
                    .OrderBy(d => d)                                 // sort
-                   .ToArray();                                      // return as array
+                   .ToArray();well                                      // return as array
+                */
                 int nMonths = outMonths.Count();
               
                 if (_iteratedOutputDates != null && _iteratedOutputDates.Count() > 0 && !_iteratedOutputDates.SequenceEqual(outMonths))
                 {
                     throw new ApplicationException("Debug, date calculation error");
                 }
-                _calcOutputDates = outMonths;
+                _calcOutputDates = outMonths.ToArray();
                 return _calcOutputDates;
             }
         }
@@ -121,16 +130,17 @@ namespace TempSuitability_CSharp
         /// sorted order. If only one of the temperature series has a valid value at a particular point then the other array at
         /// that position should be set to NoDataValue.
         /// </summary>
-        /// <param name="LST_Day_Temps">Array of LST Day temperatures, one per MODIS file in the period e.g. one every 8 days</param>
-        /// <param name="LST_Night_Temps">Array of LST Night temperatures, one per MODIS file in the period e.g. one every 8 days. 
+        /// <param name="Max_Temps">Array of LST Day temperatures, one per MODIS file in the period e.g. one every 8 days</param>
+        /// <param name="Min_Temps">Array of LST Night temperatures, one per MODIS file in the period e.g. one every 8 days. 
         /// Must be for the same dates as LST_Day input.</param>
         /// <param name="TemperatureDatePoints">Array of DateTime objects representing the dates of the input temperatures.</param>
         /// <returns></returns>
-        public bool SetData(float[] LST_Day_Temps, float[] LST_Night_Temps, DateTime[] TemperatureDatePoints, float NoDataValue, bool convertTemps)
+        public bool SetData(float[] Max_Temps, float[] Min_Temps, DateTime[] TemperatureDatePoints, float NoDataValue, 
+            bool convertMaxTempsFromLST, bool convertMinTempsFromLST)
         {
             // check inputs are of correct length
-            if (LST_Day_Temps.Length != LST_Night_Temps.Length ||
-                LST_Day_Temps.Length != TemperatureDatePoints.Length)
+            if (Max_Temps.Length != Min_Temps.Length ||
+                Max_Temps.Length != TemperatureDatePoints.Length)
             {
                 return false;
             }
@@ -161,33 +171,33 @@ namespace TempSuitability_CSharp
             double minTemp, maxTemp;
             for (int i = 0; i<nPoints; i++)
             {
-                if (LST_Night_Temps[i] != NoDataValue)
+                if (Min_Temps[i] != NoDataValue)
                 {
-                    ConvertTemperature(LST_Day_Temps[i], LST_Night_Temps[i], TemperatureDatePoints[i].DayOfYear, out maxTemp, out minTemp);
+                    ConvertTemperature(Max_Temps[i], Min_Temps[i], TemperatureDatePoints[i].DayOfYear, out maxTemp, out minTemp);
                     // min temp calculation only depends on the night temp
-                    if (convertTemps)
+                    if (convertMinTempsFromLST)
                     {
                         validminTemps.Add(minTemp);
                     }
                     else
                     {
                         // for development only, allow to run the model against unconverted LST values rather than converted air temp
-                        validminTemps.Add(LST_Night_Temps[i]);
+                        validminTemps.Add(Min_Temps[i]);
                     }
                     // create a copy of the input image date as seconds since the first one, as the interpolator needs doubles not dates
                     var dSeconds = (TemperatureDatePoints[i] - startDay).TotalSeconds;
                     validminDatePoints.Add(dSeconds);
 
                     // max temp calculation depends on both the day and night temp
-                    if (LST_Day_Temps[i] != NoDataValue)
+                    if (Max_Temps[i] != NoDataValue)
                     {
-                        if (convertTemps)
+                        if (convertMaxTempsFromLST)
                         {
                             validmaxTemps.Add(maxTemp);
                         }
                         else
                         {
-                            validmaxTemps.Add(LST_Day_Temps[i]);
+                            validmaxTemps.Add(Max_Temps[i]);
                         }
                         validmaxDatePoints.Add(dSeconds);
                     }
@@ -213,9 +223,9 @@ namespace TempSuitability_CSharp
             // set the flag for whether the temperatures are _ever_ suitable for sporogenesis
             if (validmaxTemps.Max() > modelParams.MinTempThreshold && validmaxTemps.Min() < modelParams.MosquitoDeathTemperature) {
                 // NB the Weiss code checked on the 1-daily splined temperature values for this; here we 
-                // are checking on the converted 8-daily input values. A spline can go outside the range of the 
-                // input data, so this doesn't necessarily give the same result in every case, but i think it's 
-                // reasonable to not base our decisions on such cases.
+                // are checking on the converted 8-daily (or whatever interval is provided) input values. 
+                // A spline can go outside the range of the input data, so this doesn't necessarily give 
+                // the same result in every case, but i think it's reasonable to not base our decisions on such cases.
                 _PotentiallySuitableTemperature = true;
             }
 
