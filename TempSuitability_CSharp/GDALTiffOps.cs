@@ -345,7 +345,7 @@ namespace TempSuitability_CSharp
             var creationOpts = new string[0];
             if (CreateCompressed)
             {
-                creationOpts = new string[] { "COMPRESS=DEFLATE", "ZLEVEL=9", "TILED=YES", "SPARSE_OK=TRUE", "BIGTIFF=YES" };
+                creationOpts = new string[] { "COMPRESS=DEFLATE", "ZLEVEL=9", "TILED=YES", "SPARSE_OK=FALSE", "BIGTIFF=YES", "NUM_THREADS=ALL_CPUS" };
             }
             var drv = Gdal.GetDriverByName("GTiff");
             var shapeX = shape.EastPixelCoord - shape.WestPixelCoord;
@@ -398,7 +398,7 @@ namespace TempSuitability_CSharp
             var creationOpts = new List<string>();
             if (CreateCompressed)
             {
-                creationOpts = new List<string>(){ "COMPRESS=DEFLATE", "ZLEVEL=9", "TILED=YES", "SPARSE_OK=TRUE", "BIGTIFF=YES" };
+                creationOpts = new List<string>(){ "COMPRESS=DEFLATE", "ZLEVEL=9", "TILED=YES", "SPARSE_OK=FALSE", "BIGTIFF=YES", "NUM_THREADS=ALL_CPUS" };
             }
             if (BlockSize.HasValue)
             {
