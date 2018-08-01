@@ -56,7 +56,7 @@ namespace TempSuitability_CSharp
             
             sw.Stop();
             Console.WriteLine("Time elapsed running model = {0}", sw.Elapsed);
-            Console.ReadKey();
+            //Console.ReadKey();
             return 0;
         }
 
@@ -265,13 +265,14 @@ namespace TempSuitability_CSharp
             int testnum = 0;
             while (outputDates == null && testnum < numCells)
             {
-                // if we haven't got at least 50% of the data and 100+ points it's probably crap
-                // this doesn't affect the date calculation but the spline will throw an error 
+                // if we haven't got at least 50% of the data and 100+ points it's probably crap 
+                // (unless we're playing with synoptic data or something, so make this threshold configurable).
+                // This doesn't affect the date calculation but the spline will throw an error 
                 // on initialisation
                 var nValid = Math.Min(
                     dayData[testnum].Count(v => v != _maxReader.NoDataValue),
                     nightData[testnum].Count(v => v != _minReader.NoDataValue));
-                if (nValid < nFiles / 2 || nValid < 100)
+                if (nValid < nFiles / 2 || nValid < set.Min_Required_Data_Points)
                 {
                     testnum += 1;
                     continue;
@@ -310,11 +311,11 @@ namespace TempSuitability_CSharp
                     //geogParams.ModelRuntimeDays = nDays;
                     //geogParams.StartJulianDay = 0;
 
-                    // run only if we've got at least 50% of the data and 100+ points
+                    // run only if we've got at least 50% of the data and 100+ points (or whatever is configured)
                     var nValid = Math.Min(
                         dayData[c].Count(v => v != _maxReader.NoDataValue),
                         nightData[c].Count(v => v != _minReader.NoDataValue));
-                    if (nValid < nFiles / 2 || nValid < 100)
+                    if (nValid < nFiles / 2 || nValid < set.Min_Required_Data_Points)
                     {
                         tsOut[c] = new float[0];
                     }

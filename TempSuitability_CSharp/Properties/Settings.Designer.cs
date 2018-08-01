@@ -193,5 +193,14 @@ namespace TempSuitability_CSharp.Properties {
                 return ((bool)(this["Min_Temp_Convert_From_LST"]));
             }
         }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("100")]
+        public ushort Min_Required_Data_Points {
+            get {
+                return ((ushort)(this["Min_Required_Data_Points"]));
+            }
+        }
     }
 }

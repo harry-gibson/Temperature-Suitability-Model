@@ -59,5 +59,8 @@
     <Setting Name="Min_Temp_Convert_From_LST" Type="System.Boolean" Scope="Application">
       <Value Profile="(Default)">True</Value>
     </Setting>
+    <Setting Name="Min_Required_Data_Points" Type="System.UInt16" Scope="Application">
+      <Value Profile="(Default)">100</Value>
+    </Setting>
   </Settings>
 </SettingsFile>
