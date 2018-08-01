@@ -85,11 +85,11 @@ namespace TempSuitability_CSharp
             //var d = new System.Diagnostics.DefaultTraceListener();
             _maxReader = new TiffCubeReader(dayPath, _fnParser);
             var nMax = _maxReader.Filenames.Count;
-            System.Console.WriteLine("Looking for LST Day files in " + dayPath + 
+            System.Console.WriteLine("Looking for max temp files in " + dayPath + 
                 " - found "+ nMax.ToString());
             _minReader = new TiffCubeReader(nightPath, _fnParser);
             var nMin = _minReader.Filenames.Count;
-            System.Console.WriteLine("Looking for LST Night files in " + nightPath +
+            System.Console.WriteLine("Looking for min temp files in " + nightPath +
                 " - found " + nMin.ToString());
 
             if (nMax == 0 || nMin == 0)
@@ -99,7 +99,7 @@ namespace TempSuitability_CSharp
             }
             if (!_maxReader.GeoTransform.SequenceEqual(_minReader.GeoTransform))
             {
-                throw new ArgumentException("Day and night image transforms do not match!");
+                throw new ArgumentException("max and min temp image transforms do not match!");
             }
             if (!GDAL_Operations.GetGeoTransform(maskPath).SequenceEqual(_maxReader.GeoTransform))
             {
@@ -140,13 +140,16 @@ namespace TempSuitability_CSharp
             var lonsToRun = _maxReader.GetSubsetLongitudeCoords((int)pxOverall.WestPixelCoord, (int)(pxOverall.EastPixelCoord - pxOverall.WestPixelCoord));
             var nTilesX = (int)Math.Ceiling((double)lonsToRun.Length / TileSize);
             var nTilesY = (int)Math.Ceiling((double)latsToRun.Length / TileSize);
-            string runDir = WestDegrees.ToString() + "W-"
+
+            var nTilesTotal = nTilesX * nTilesY;
+            string tileDir = WestDegrees.ToString() + "W-"
                             + EastDegrees.ToString() + "E-"
                             + NorthDegrees.ToString() + "N-"
                             + SouthDegrees.ToString() + "S-"
-                            + TileSize.ToString() +"px";
-            System.Console.WriteLine("Initiating run of  " + (nTilesX * nTilesY).ToString() + " tiles");
-            System.IO.Directory.CreateDirectory(System.IO.Path.Combine(_outDir, runDir));
+                            + TileSize.ToString() +"px_tiles";
+            Console.WriteLine("Initiating run of  " + nTilesTotal.ToString() + " tiles");
+            var runDir = nTilesTotal == 1 ? _outDir : System.IO.Path.Combine(_outDir, tileDir);
+            System.IO.Directory.CreateDirectory(runDir);
             for (int tileRow = 0; tileRow < nTilesY; tileRow++)
             {
                 int yOff = (int) pxOverall.NorthPixelCoord + tileRow * TileSize;
@@ -160,9 +163,16 @@ namespace TempSuitability_CSharp
                 for (int tileCol = 0; tileCol < nTilesX; tileCol++)
                 {
                     var tileNum = tileRow * nTilesX + tileCol + 1;
-                    var tilenameLocPart = "_r" + tileRow.ToString("D3") + "_c" + tileCol.ToString("D3") + ".tif";
-
-                    if (System.IO.Directory.EnumerateFiles(System.IO.Path.Combine(_outDir, runDir), "*" + tilenameLocPart).Count() != 0)
+                    string tilenameLocPart;
+                    if (nTilesTotal > 1)
+                    {
+                        tilenameLocPart = ".r" + tileRow.ToString("D3") + "_c" + tileCol.ToString("D3") + ".tif";
+                    }
+                    else
+                    {
+                        tilenameLocPart = ".tif";
+                    }
+                    if (System.IO.Directory.EnumerateFiles(runDir, "*" + tilenameLocPart).Count() != 0)
                     {
                         System.Console.WriteLine("Tile " + tileNum.ToString() + " appears to be already done, skipping");
                         continue;
@@ -180,10 +190,10 @@ namespace TempSuitability_CSharp
                     if (cellRes.Length == 0)
                     {
                         // whole tile was in masked / sea area. Do not bother to write output.
-                        System.Console.WriteLine("Tile "+tileNum.ToString() +" was wholly in sea - skipped");
+                        Console.WriteLine("Tile "+tileNum.ToString() +" was wholly in sea - skipped");
                         continue;
                     }
-                    System.Console.WriteLine("Tile computation completed, writing output");
+                    Console.WriteLine("Tile computation completed, writing output");
                     var tileRes = TransposeCellData(
                         cellRes,
                         thisTileXSize, thisTileYSize);
@@ -194,11 +204,11 @@ namespace TempSuitability_CSharp
                     for (int t = 0; t<tileRes.Length; t++)
                     {
                         var tData = tileRes[t];
-                        string fn = _outputDates[t].Date.ToString("yyyyMMdd") + "_r" + tileRow.ToString("D3") + "_c" + tileCol.ToString("D3") + ".tif";
-                        string outFile = System.IO.Path.Combine(_outDir, runDir, fn);
+                        string fn = "TSI." + _outputDates[t].Date.ToString("yyyy.MM") + tilenameLocPart;
+                        string outFile = System.IO.Path.Combine(runDir, fn);
                         GDAL_Operations.WriteWholeTiff(outFile, tData, tileGT, tileProj, tileLims, true, _maxReader.NoDataValue);
                     }
-                    System.Console.WriteLine("Tile " + tileNum.ToString() + " finished - wrote "+tileRes.Length.ToString()+" files");
+                    Console.WriteLine("Tile " + tileNum.ToString() + " finished - wrote "+tileRes.Length.ToString()+" files");
                 }
             }
         }
@@ -228,17 +238,23 @@ namespace TempSuitability_CSharp
                 // this whole tile is in the sea, no need to run, return as a special case a zero length cell array
                 return new float[0][];
             }
-            var dayData = _maxReader.ReadCellData(xOff, yOff, xSize, ySize);
+            var maxTempData = _maxReader.ReadCellData(xOff, yOff, xSize, ySize);
             var lats = _maxReader.GetSubsetLatitudeCoords(yOff, ySize);
             var lons = _maxReader.GetSubsetLongitudeCoords(xOff, xSize);
+            var minTempData = _minReader.ReadCellData(xOff, yOff, xSize, ySize);
+            int numCells = xSize * ySize;
+
+            // there's no reason in principle why we couldn't allow different numbers of min and max temp files although of 
+            // course we'd have to pass separate dates arrays into the model then, but hey. It would be a bit more effort 
+            // to handle different geotransforms in the max and min temps data and this way we make it less likely that 
+            // they've come from separate sources.
+            Debug.Assert(minTempData.Length == maxTempData.Length);
+            Debug.Assert(maxTempData.Length == numCells);
             var dates = _maxReader.Filedates.ToArray();
             var nFiles = dates.Length;
-            var nightData = _minReader.ReadCellData(xOff, yOff, xSize, ySize);
-            int numCells = xSize * ySize;
-            Debug.Assert(nightData.Length == dayData.Length);
-            Debug.Assert(dayData.Length == numCells);
 
-            // get the model parameters from the default settings file
+            // get the model parameters from the default settings file, bearing in mind that this could have been re-set 
+            // at initialisation to a file specified on the commandline, rather than just being the default app config
             var set = Properties.Settings.Default;
             PopulationParams popParams = new PopulationParams();
             popParams.DegreeDayThreshold = set.ParamSporogDegreeDays;
@@ -270,8 +286,8 @@ namespace TempSuitability_CSharp
                 // This doesn't affect the date calculation but the spline will throw an error 
                 // on initialisation
                 var nValid = Math.Min(
-                    dayData[testnum].Count(v => v != _maxReader.NoDataValue),
-                    nightData[testnum].Count(v => v != _minReader.NoDataValue));
+                    maxTempData[testnum].Count(v => v != _maxReader.NoDataValue),
+                    minTempData[testnum].Count(v => v != _minReader.NoDataValue));
                 if (nValid < nFiles / 2 || nValid < set.Min_Required_Data_Points)
                 {
                     testnum += 1;
@@ -284,7 +300,7 @@ namespace TempSuitability_CSharp
                 popParams, 
                 new GeographicCellLocation() {Latitude=lats[0], Longitude=lons[0]}, 
                 PopulationTypes.Pointers);
-                if (!tsModel.SetData(dayData[testnum], nightData[testnum], dates, _maxReader.NoDataValue.Value, 
+                if (!tsModel.SetData(maxTempData[testnum], minTempData[testnum], dates, _maxReader.NoDataValue.Value, 
                     set.Max_Temp_Convert_From_LST, set.Min_Temp_Convert_From_LST))
                 {
                     throw new ApplicationException("Pop goes the weasel");
@@ -313,8 +329,8 @@ namespace TempSuitability_CSharp
 
                     // run only if we've got at least 50% of the data and 100+ points (or whatever is configured)
                     var nValid = Math.Min(
-                        dayData[c].Count(v => v != _maxReader.NoDataValue),
-                        nightData[c].Count(v => v != _minReader.NoDataValue));
+                        maxTempData[c].Count(v => v != _maxReader.NoDataValue),
+                        minTempData[c].Count(v => v != _minReader.NoDataValue));
                     if (nValid < nFiles / 2 || nValid < set.Min_Required_Data_Points)
                     {
                         tsOut[c] = new float[0];
@@ -331,7 +347,7 @@ namespace TempSuitability_CSharp
                        //     nd[i] = optimal; }
                         //tsModel.SetData(dd, nd, dates, _maxReader.NoDataValue.Value, false);
 
-                        if (!tsModel.SetData(dayData[c], nightData[c], dates, _maxReader.NoDataValue.Value, 
+                        if (!tsModel.SetData(maxTempData[c], minTempData[c], dates, _maxReader.NoDataValue.Value, 
                             set.Max_Temp_Convert_From_LST, set.Min_Temp_Convert_From_LST))
                         {
                             throw new ApplicationException("Pop goes the weasel");
