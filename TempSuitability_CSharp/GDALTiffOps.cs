@@ -345,7 +345,7 @@ namespace TempSuitability_CSharp
             var creationOpts = new string[0];
             if (CreateCompressed)
             {
-                creationOpts = new string[] { "COMPRESS=DEFLATE", "ZLEVEL=9", "TILED=YES", "SPARSE_OK=FALSE", "BIGTIFF=YES", "NUM_THREADS=ALL_CPUS" };
+                creationOpts = new string[] { "COMPRESS=DEFLATE", "ZLEVEL=9", "TILED=YES", "SPARSE_OK=FALSE", "BIGTIFF=YES" };
             }
             var drv = Gdal.GetDriverByName("GTiff");
             var shapeX = shape.EastPixelCoord - shape.WestPixelCoord;
