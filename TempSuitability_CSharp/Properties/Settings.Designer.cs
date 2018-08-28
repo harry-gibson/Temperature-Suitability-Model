@@ -202,5 +202,23 @@ namespace TempSuitability_CSharp.Properties {
                 return ((ushort)(this["Min_Required_Data_Points"]));
             }
         }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("2000-01-01")]
+        public global::System.DateTime Read_From_Date {
+            get {
+                return ((global::System.DateTime)(this["Read_From_Date"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("2017-01-31")]
+        public global::System.DateTime Read_To_Date {
+            get {
+                return ((global::System.DateTime)(this["Read_To_Date"]));
+            }
+        }
     }
 }

@@ -81,13 +81,14 @@ namespace TempSuitability_CSharp
         private TSModelRunner(IFilenameDateParser _parser, string maskPath, string dayPath, string nightPath, string outDir, int maskValidValue)
         {
             _fnParser = _parser;
+            var set = Properties.Settings.Default;
             //System.Console.WriteLine("Looking for files in " + m_FileWildCard);
             //var d = new System.Diagnostics.DefaultTraceListener();
-            _maxReader = new TiffCubeReader(dayPath, _fnParser);
+            _maxReader = new TiffCubeReader(dayPath, _fnParser, set.Read_From_Date, set.Read_To_Date);
             var nMax = _maxReader.Filenames.Count;
             System.Console.WriteLine("Looking for max temp files in " + dayPath + 
                 " - found "+ nMax.ToString());
-            _minReader = new TiffCubeReader(nightPath, _fnParser);
+            _minReader = new TiffCubeReader(nightPath, _fnParser, set.Read_From_Date, set.Read_To_Date);
             var nMin = _minReader.Filenames.Count;
             System.Console.WriteLine("Looking for min temp files in " + nightPath +
                 " - found " + nMin.ToString());

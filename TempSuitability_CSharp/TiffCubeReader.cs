@@ -12,7 +12,7 @@ namespace TempSuitability_CSharp
         private IFilenameDateParser m_FilenameDateParser;
         private SortedList<DateTime, string> m_FileDates;
         private int m_readsizeX, m_readsizeY;
-
+        private DateTime? m_MinDateToRead, m_MaxDateToRead;
         public IList<string> Filenames
         {
             get
@@ -59,10 +59,13 @@ namespace TempSuitability_CSharp
         /// </summary>
         public float? NoDataValue { get; private set; }
 
-        public TiffCubeReader(string FilepathWildcard, IFilenameDateParser FilenameDateParserObject)
+        public TiffCubeReader(string FilepathWildcard, IFilenameDateParser FilenameDateParserObject, DateTime? MinDate, DateTime? MaxDate)
         {
             m_FileWildCard = FilepathWildcard;
             m_FilenameDateParser = FilenameDateParserObject;
+            m_MinDateToRead = MinDate;
+            m_MaxDateToRead = MaxDate;
+        
             PopulateFilenamesAndDates();
             if (m_FileDates.Count > 0)
             {
@@ -303,8 +306,9 @@ namespace TempSuitability_CSharp
         }
 
         /// <summary>
-        /// Parse the dates for all files matching the given wildcard, and store these against the 
-        /// filenames in a sorted (by date) list
+        /// Parse the dates for all files matching the given wildcard, filter to only include those within the 
+        ///  requested date range if one has been set on this reader, and store the dates against the 
+        /// filenames in a sorted (by date) list of key value pairs date:filename
         /// </summary>
         private void PopulateFilenamesAndDates()
         {
@@ -316,6 +320,8 @@ namespace TempSuitability_CSharp
                 .Select(fn => new KeyValuePair<DateTime?, string>(m_FilenameDateParser.TryParseFilenameDate(fn), fn))
                 .Where(kvp => kvp.Key.HasValue)
                 .Select(kvp => new KeyValuePair<DateTime, string>(kvp.Key.Value, kvp.Value))
+                .Where(kvp => !m_MinDateToRead.HasValue || kvp.Key >= m_MinDateToRead)
+                .Where(kvp => !m_MaxDateToRead.HasValue || kvp.Key <= m_MaxDateToRead)
                 .ToDictionary(kvp => kvp.Key, kvp=> kvp.Value)
                 );
         }

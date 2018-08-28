@@ -335,9 +335,7 @@ namespace TempSuitability_CSharp
             ds.Dispose();
             return buffer;
         }
-
-
-
+        
         public static bool WriteWholeTiff(string Filename, float[] Data, double[] GeoTransform, string Projection, PixelLims shape, bool CreateCompressed, float? NDV)
         {
             // we will create a tiff with tiles (blocks) but let the size of them be specified automatically

@@ -62,5 +62,11 @@
     <Setting Name="Min_Required_Data_Points" Type="System.UInt16" Scope="Application">
       <Value Profile="(Default)">100</Value>
     </Setting>
+    <Setting Name="Read_From_Date" Type="System.DateTime" Scope="Application">
+      <Value Profile="(Default)">2000-01-01</Value>
+    </Setting>
+    <Setting Name="Read_To_Date" Type="System.DateTime" Scope="Application">
+      <Value Profile="(Default)">2017-01-31</Value>
+    </Setting>
   </Settings>
 </SettingsFile>
