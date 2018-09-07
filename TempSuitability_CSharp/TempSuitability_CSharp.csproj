@@ -96,6 +96,7 @@
     <Compile Include="FilenameDateParsers.cs" />
     <Compile Include="GeographicCell.cs" />
     <Compile Include="IFilenameDateParser.cs" />
+    <Compile Include="ModelConfig.cs" />
     <Compile Include="MosquitoPopulations.cs" />
     <Compile Include="DataPrep.cs" />
     <Compile Include="GdalConfiguration.cs" />

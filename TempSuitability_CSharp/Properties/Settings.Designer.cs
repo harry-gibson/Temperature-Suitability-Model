@@ -88,7 +88,7 @@ namespace TempSuitability_CSharp.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("J:\\MOD11A2_Gapfilled_Output\\LST_Day\\Output_Final_30k_2030pc\\*_Data.tif")]
+        [global::System.Configuration.DefaultSettingValueAttribute("E:\\Path\\To\\LST_Day_Files\\*_Data.tif")]
         public string Max_Temp_Files {
             get {
                 return ((string)(this["Max_Temp_Files"]));
@@ -97,7 +97,7 @@ namespace TempSuitability_CSharp.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("J:\\MOD11A2_Gapfilled_Output\\LST_Night\\Output_Final_30k_2030pc\\*_Data.tif")]
+        [global::System.Configuration.DefaultSettingValueAttribute("E:\\Path\\To\\LST_Night_Files\\*_Data.tif")]
         public string Min_Temp_Files {
             get {
                 return ((string)(this["Min_Temp_Files"]));
@@ -106,7 +106,7 @@ namespace TempSuitability_CSharp.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("C:\\temp\\tsmodel\\1km\\local\\martens2_1k_global_fixhr")]
+        [global::System.Configuration.DefaultSettingValueAttribute("E:\\Path\\To\\Output\\Folder")]
         public string OutputFolder {
             get {
                 return ((string)(this["OutputFolder"]));
@@ -151,7 +151,7 @@ namespace TempSuitability_CSharp.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("Z:\\mastergrids\\Global_Masks\\Land_Sea_Masks\\CoastGlobal.tiff")]
+        [global::System.Configuration.DefaultSettingValueAttribute("Z:\\Path\\To\\CoastlineMaskFile.tif")]
         public string LS_Mask_File {
             get {
                 return ((string)(this["LS_Mask_File"]));
@@ -161,9 +161,9 @@ namespace TempSuitability_CSharp.Properties {
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("2000")]
-        public uint TileSizePx {
+        public ushort TileSizePx {
             get {
-                return ((uint)(this["TileSizePx"]));
+                return ((ushort)(this["TileSizePx"]));
             }
         }
         
@@ -218,6 +218,15 @@ namespace TempSuitability_CSharp.Properties {
         public global::System.DateTime Read_To_Date {
             get {
                 return ((global::System.DateTime)(this["Read_To_Date"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("TSI_Output")]
+        public string Output_File_Tag {
+            get {
+                return ((string)(this["Output_File_Tag"]));
             }
         }
     }

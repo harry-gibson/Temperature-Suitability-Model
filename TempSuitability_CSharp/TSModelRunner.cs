@@ -13,51 +13,53 @@ namespace TempSuitability_CSharp
         private readonly TiffCubeReader _maxReader;
         private readonly TiffCubeReader _minReader;
         private readonly IFilenameDateParser _fnParser;
-        private readonly string _maskPath;
-        private readonly string _outDir;
-        private readonly float _maskValidValue;
-        private readonly float _maskNDV;
+        //private readonly string _maskPath;
+        //private readonly string _outDir;
+        //private readonly float _maskValidValue;
+        //private readonly float _maskNDV;
+        private readonly TSIModelConfig _cfg;
         private DateTime[] _outputDates;
 
         static int Main(string[] args)
         {
-            setConfigFileAtRuntime(args);
-            Environment.SetEnvironmentVariable("PATH", Environment.GetEnvironmentVariable("PATH")
-      + ";C:\\Users\\zool1301.NDPH\\Documents\\Code_General\\temp-suitability\\TempSuitability_CSharp\\packages\\GDAL.Native.1.11.1\\gdal\\x64");
-            string maskPath, maxTempsPath, minTempsPath, outDir;
-            int maskValidValue;
-            try {
-                maskPath = Properties.Settings.Default.LS_Mask_File;
-                maxTempsPath = Properties.Settings.Default.Max_Temp_Files;
-                minTempsPath = Properties.Settings.Default.Min_Temp_Files;
-                outDir = Properties.Settings.Default.OutputFolder;
-                maskValidValue = Properties.Settings.Default.MaskValidValue;
-                Console.WriteLine("Got temps: " + maxTempsPath);
-                //return 0;
-            }
-            catch
+            var cfg = loadConfig(args);
+            if (cfg == null)
             {
-                Console.WriteLine("Could not find paths specification in config file");
                 return 1;
             }
 
-            TSModelRunner runner = new TSModelRunner(new FilenameDateParser_Mastergrid(), maskPath, maxTempsPath, minTempsPath, outDir, maskValidValue);
+            Environment.SetEnvironmentVariable("PATH", Environment.GetEnvironmentVariable("PATH")
+      + ";C:\\Users\\zool1301.NDPH\\Documents\\Code_General\\temp-suitability\\TempSuitability_CSharp\\packages\\GDAL.Native.1.11.1\\gdal\\x64");
+            
+            TSModelRunner runner = new TSModelRunner(new FilenameDateParser_AutoDetect(), cfg);
 
             Stopwatch sw = new Stopwatch();
             sw.Start();
-            double e, w, n, s;
-            int size;
-            w = Properties.Settings.Default.WestLim;
-            e = Properties.Settings.Default.EastLim;
-            n = Properties.Settings.Default.NorthLim;
-            s = Properties.Settings.Default.SouthLim;
-            size = (int)Properties.Settings.Default.TileSizePx;
-            runner.RunAllTiles(w, e, n, s, size);                                                                                                                                                               
-            
+            runner.RunAllTiles();                                                                                                                                                               
             sw.Stop();
             Console.WriteLine("Time elapsed running model = {0}", sw.Elapsed);
             //Console.ReadKey();
             return 0;
+        }
+
+        static TSIModelConfig loadConfig(string[] args)
+        {
+            string runtimeConfigFile;
+            if (args.Length == 0)
+            {
+                Console.WriteLine("Please specify a config file or hit enter to use application defaults:");
+                Console.Write("> ");
+                runtimeConfigFile = Console.ReadLine();
+            }
+            else
+            {
+                runtimeConfigFile = args[0];
+            }
+            if (runtimeConfigFile == "")
+            {
+                runtimeConfigFile = null;
+            }
+            return TSIModelConfig.LoadOrCreateConfig(runtimeConfigFile);
         }
 
         static void setConfigFileAtRuntime(string[] args)
@@ -78,19 +80,22 @@ namespace TempSuitability_CSharp
         // see also https://www.codeproject.com/Articles/14465/Specify-a-Configuration-File-at-Runtime-for-a-C-Co
 
 
-        private TSModelRunner(IFilenameDateParser _parser, string maskPath, string dayPath, string nightPath, string outDir, int maskValidValue)
+        private TSModelRunner(IFilenameDateParser _parser, TSIModelConfig cfg)
         {
             _fnParser = _parser;
-            var set = Properties.Settings.Default;
+            //var set = Properties.Settings.Default;
             //System.Console.WriteLine("Looking for files in " + m_FileWildCard);
             //var d = new System.Diagnostics.DefaultTraceListener();
-            _maxReader = new TiffCubeReader(dayPath, _fnParser, set.Read_From_Date, set.Read_To_Date);
+            
+            _maxReader = new TiffCubeReader(cfg.dataPathConfig.MaxTempFiles, _fnParser, 
+                cfg.modelRunConfig.ReadFromDate, cfg.modelRunConfig.ReadToDate);
             var nMax = _maxReader.Filenames.Count;
-            System.Console.WriteLine("Looking for max temp files in " + dayPath + 
+            Console.WriteLine("Looking for max temp files in " + cfg.dataPathConfig.MaxTempFiles + 
                 " - found "+ nMax.ToString());
-            _minReader = new TiffCubeReader(nightPath, _fnParser, set.Read_From_Date, set.Read_To_Date);
+            _minReader = new TiffCubeReader(cfg.dataPathConfig.MinTempFiles, _fnParser,
+                cfg.modelRunConfig.ReadFromDate, cfg.modelRunConfig.ReadToDate);
             var nMin = _minReader.Filenames.Count;
-            System.Console.WriteLine("Looking for min temp files in " + nightPath +
+            Console.WriteLine("Looking for min temp files in " + cfg.dataPathConfig.MinTempFiles +
                 " - found " + nMin.ToString());
 
             if (nMax == 0 || nMin == 0)
@@ -102,26 +107,16 @@ namespace TempSuitability_CSharp
             {
                 throw new ArgumentException("max and min temp image transforms do not match!");
             }
-            if (!GDAL_Operations.GetGeoTransform(maskPath).SequenceEqual(_maxReader.GeoTransform))
+            if (!GDAL_Operations.GetGeoTransform(cfg.dataPathConfig.MaskFile).SequenceEqual(_maxReader.GeoTransform))
             {
                 throw new ArgumentException("Land-sea mask doesn't match images!");
             }
-            _maskPath = maskPath;
-            var ndv = GDAL_Operations.GetNoDataValue(maskPath);
-            if(ndv.HasValue)
+            if (!System.IO.Directory.Exists(cfg.dataPathConfig.OutputFolder))
             {
-                _maskNDV = ndv.Value;
+                System.IO.Directory.CreateDirectory(cfg.dataPathConfig.OutputFolder);
             }
-            else
-            {
-                _maskNDV = float.MinValue;
-            }
-            if (!System.IO.Directory.Exists(outDir))
-            {
-                System.IO.Directory.CreateDirectory(outDir);
-            }
-            _outDir = outDir;
-            _maskValidValue = maskValidValue;
+            _cfg = cfg;
+            
         }
 
         /// <summary>
@@ -133,23 +128,30 @@ namespace TempSuitability_CSharp
         /// <param name="NorthDegrees"></param>
         /// <param name="SouthDegrees"></param>
         /// <param name="TileSize"></param>
-        public void RunAllTiles(double WestDegrees, double EastDegrees, double NorthDegrees, double SouthDegrees, int TileSize)
+        public void RunAllTiles()
         {
             var globalGT = _maxReader.GeoTransform;
-            var pxOverall = GDAL_Operations.CalculatePixelCoordsOfBlock(globalGT, WestDegrees, EastDegrees, NorthDegrees, SouthDegrees);
+            var lims = _cfg.spatialLimits;
+            var pxOverall = GDAL_Operations.CalculatePixelCoordsOfBlock(globalGT, 
+                lims.WestLimitDegrees, lims.EastLimitDegrees, 
+                lims.NorthLimitDegrees, lims.SouthLimitDegrees
+            );
+            var TileSize = _cfg.modelRunConfig.MaxTileSizePx;
             var latsToRun = _maxReader.GetSubsetLatitudeCoords((int)pxOverall.NorthPixelCoord, (int)(pxOverall.SouthPixelCoord - pxOverall.NorthPixelCoord));
             var lonsToRun = _maxReader.GetSubsetLongitudeCoords((int)pxOverall.WestPixelCoord, (int)(pxOverall.EastPixelCoord - pxOverall.WestPixelCoord));
             var nTilesX = (int)Math.Ceiling((double)lonsToRun.Length / TileSize);
             var nTilesY = (int)Math.Ceiling((double)latsToRun.Length / TileSize);
 
             var nTilesTotal = nTilesX * nTilesY;
-            string tileDir = WestDegrees.ToString() + "W-"
-                            + EastDegrees.ToString() + "E-"
-                            + NorthDegrees.ToString() + "N-"
-                            + SouthDegrees.ToString() + "S-"
+            string tileDir = lims.WestLimitDegrees.ToString() + "W-"
+                            + lims.EastLimitDegrees.ToString() + "E-"
+                            + lims.NorthLimitDegrees.ToString() + "N-"
+                            + lims.SouthLimitDegrees.ToString() + "S-"
                             + TileSize.ToString() +"px_tiles";
             Console.WriteLine("Initiating run of  " + nTilesTotal.ToString() + " tiles");
-            var runDir = nTilesTotal == 1 ? _outDir : System.IO.Path.Combine(_outDir, tileDir);
+            var runDir = nTilesTotal == 1 ? 
+                _cfg.dataPathConfig.OutputFolder : 
+                System.IO.Path.Combine(_cfg.dataPathConfig.OutputFolder, tileDir);
             System.IO.Directory.CreateDirectory(runDir);
             for (int tileRow = 0; tileRow < nTilesY; tileRow++)
             {
@@ -205,7 +207,8 @@ namespace TempSuitability_CSharp
                     for (int t = 0; t<tileRes.Length; t++)
                     {
                         var tData = tileRes[t];
-                        string fn = "TSI." + _outputDates[t].Date.ToString("yyyy.MM") + tilenameLocPart;
+                        string fn = _cfg.modelRunConfig.OutputFileTag + "." + 
+                            _outputDates[t].Date.ToString("yyyy.MM") + tilenameLocPart;
                         string outFile = System.IO.Path.Combine(runDir, fn);
                         GDAL_Operations.WriteWholeTiff(outFile, tData, tileGT, tileProj, tileLims, true, _maxReader.NoDataValue);
                     }
@@ -232,9 +235,9 @@ namespace TempSuitability_CSharp
         {
             // test area: int xOff=20480, int yOff=9216, int xSize=512, int ySize=512
             var lsMask = GDAL_Operations.ReadGDALRasterBandsToFlatArray(
-                _maskPath,
+                _cfg.dataPathConfig.MaskFile,
                 xSize, ySize, xOff, yOff, 1);
-            if (!lsMask.Any(v => v == _maskValidValue))
+            if (!lsMask.Any(v => v == _cfg.modelRunConfig.MaskValidValue))
             {
                 // this whole tile is in the sea, no need to run, return as a special case a zero length cell array
                 return new float[0][];
@@ -256,25 +259,29 @@ namespace TempSuitability_CSharp
 
             // get the model parameters from the default settings file, bearing in mind that this could have been re-set 
             // at initialisation to a file specified on the commandline, rather than just being the default app config
-            var set = Properties.Settings.Default;
+            //var set = Properties.Settings.Default;
+            var set = _cfg.modelConfig;
             PopulationParams popParams = new PopulationParams();
-            popParams.DegreeDayThreshold = set.ParamSporogDegreeDays;
-            popParams.MinTempThreshold = set.ParamMinTempThreshCelsius;
-            popParams.MosquitoDeathTemperature = set.ParamDeathTempCelsius; ;
-            popParams.MosquitoLifespanDays = new TimeSpan((int)set.ParamLifespanDays, 0, 0, 0); ;
-            popParams.SliceLength = new TimeSpan((int)set.ParamSliceLengthHours, 0, 0);
-            popParams.MaxTempSuitability = set.ParamMaxTSNormaliser;
+            popParams.DegreeDayThreshold = set.SporogenesisDegreeDays;
+            popParams.MinTempThreshold = set.MinTempThresholdCelsius;
+            popParams.MosquitoDeathTemperature = set.DeathTempCelsius; ;
+            popParams.MosquitoLifespanDays = new TimeSpan((int)set.LifespanDays, 0, 0, 0); ;
+            popParams.SliceLength = new TimeSpan((int)set.SliceLengthHours, 0, 0);
+            popParams.MaxTempSuitability = set.MaxTSNormaliser;
             // max ts for default settings is 34.2467; the Weiss code had 33.89401 , not sure how generated. 
             // I got this using iterative solver in excel.
-            System.Console.WriteLine("Tile data loaded, computation beginning");
+            Console.WriteLine("Tile data loaded, computation beginning");
+
+            var mConfig = _cfg.modelRunConfig;
 
             float[][] tsOut = new float[numCells][];
             DateTime[] outputDates = null;
             ParallelOptions b = new ParallelOptions();
-            if (set.MaxThreads != 0)
+            
+            if (mConfig.MaxThreads != 0)
             {
                 // set threads to 1 for easier step-through debugging or some other number to not hog the whole machine
-                b.MaxDegreeOfParallelism = (int)set.MaxThreads;
+                b.MaxDegreeOfParallelism = (int)mConfig.MaxThreads;
                 //System.Threading.ThreadPool.SetMaxThreads(set.MaxThreads, set.MaxThreads);
                 //System.Threading.ThreadPool.SetMinThreads(set.MinThreads, set.MinThreads);
 
@@ -289,7 +296,7 @@ namespace TempSuitability_CSharp
                 var nValid = Math.Min(
                     maxTempData[testnum].Count(v => v != _maxReader.NoDataValue),
                     minTempData[testnum].Count(v => v != _minReader.NoDataValue));
-                if (nValid < nFiles / 2 || nValid < set.Min_Required_Data_Points)
+                if (nValid < nFiles / 2 || nValid < mConfig.MinRequiredDataPoints)
                 {
                     testnum += 1;
                     continue;
@@ -302,17 +309,17 @@ namespace TempSuitability_CSharp
                 new GeographicCellLocation() {Latitude=lats[0], Longitude=lons[0]}, 
                 PopulationTypes.Pointers);
                 if (!tsModel.SetData(maxTempData[testnum], minTempData[testnum], dates, _maxReader.NoDataValue.Value, 
-                    set.Max_Temp_Convert_From_LST, set.Min_Temp_Convert_From_LST))
+                    mConfig.MaxTempFilesAreLST, mConfig.MinTempFilesAreLST))
                 {
                     throw new ApplicationException("Pop goes the weasel");
                 };
                 outputDates = tsModel.OutputDates;
                 break;
             }
+
             Parallel.For(0, numCells, b, c =>
             {
-
-                if (lsMask[c] != _maskValidValue)
+                if (lsMask[c] != mConfig.MaskValidValue)
                 {
                     // this cell is in the sea, no need to run, return as a special case a zero length result array
                     tsOut[c] = new float[0];
@@ -332,7 +339,7 @@ namespace TempSuitability_CSharp
                     var nValid = Math.Min(
                         maxTempData[c].Count(v => v != _maxReader.NoDataValue),
                         minTempData[c].Count(v => v != _minReader.NoDataValue));
-                    if (nValid < nFiles / 2 || nValid < set.Min_Required_Data_Points)
+                    if (nValid < nFiles / 2 || nValid < mConfig.MinRequiredDataPoints)
                     {
                         tsOut[c] = new float[0];
                     }
@@ -349,7 +356,7 @@ namespace TempSuitability_CSharp
                         //tsModel.SetData(dd, nd, dates, _maxReader.NoDataValue.Value, false);
 
                         if (!tsModel.SetData(maxTempData[c], minTempData[c], dates, _maxReader.NoDataValue.Value, 
-                            set.Max_Temp_Convert_From_LST, set.Min_Temp_Convert_From_LST))
+                            mConfig.MaxTempFilesAreLST, mConfig.MinTempFilesAreLST))
                         {
                             throw new ApplicationException("Pop goes the weasel");
                         };

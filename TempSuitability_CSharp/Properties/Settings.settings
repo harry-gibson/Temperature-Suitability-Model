@@ -24,13 +24,13 @@
       <Value Profile="(Default)">34.2467</Value>
     </Setting>
     <Setting Name="Max_Temp_Files" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">J:\MOD11A2_Gapfilled_Output\LST_Day\Output_Final_30k_2030pc\*_Data.tif</Value>
+      <Value Profile="(Default)">E:\Path\To\LST_Day_Files\*_Data.tif</Value>
     </Setting>
     <Setting Name="Min_Temp_Files" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">J:\MOD11A2_Gapfilled_Output\LST_Night\Output_Final_30k_2030pc\*_Data.tif</Value>
+      <Value Profile="(Default)">E:\Path\To\LST_Night_Files\*_Data.tif</Value>
     </Setting>
     <Setting Name="OutputFolder" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">C:\temp\tsmodel\1km\local\martens2_1k_global_fixhr</Value>
+      <Value Profile="(Default)">E:\Path\To\Output\Folder</Value>
     </Setting>
     <Setting Name="WestLim" Type="System.Double" Scope="Application">
       <Value Profile="(Default)">-60</Value>
@@ -45,9 +45,9 @@
       <Value Profile="(Default)">-60</Value>
     </Setting>
     <Setting Name="LS_Mask_File" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">Z:\mastergrids\Global_Masks\Land_Sea_Masks\CoastGlobal.tiff</Value>
+      <Value Profile="(Default)">Z:\Path\To\CoastlineMaskFile.tif</Value>
     </Setting>
-    <Setting Name="TileSizePx" Type="System.UInt32" Scope="Application">
+    <Setting Name="TileSizePx" Type="System.UInt16" Scope="Application">
       <Value Profile="(Default)">2000</Value>
     </Setting>
     <Setting Name="MaxThreads" Type="System.UInt16" Scope="Application">
@@ -67,6 +67,9 @@
     </Setting>
     <Setting Name="Read_To_Date" Type="System.DateTime" Scope="Application">
       <Value Profile="(Default)">2017-01-31</Value>
+    </Setting>
+    <Setting Name="Output_File_Tag" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">TSI_Output</Value>
     </Setting>
   </Settings>
 </SettingsFile>
