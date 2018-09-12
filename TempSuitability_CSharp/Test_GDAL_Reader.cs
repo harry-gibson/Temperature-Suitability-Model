@@ -36,7 +36,7 @@ namespace TempSuitability_CSharp
             int yOff = row * ySize;
             
             string fileWildCard = "F:\\MOD11A2_Gapfilled_Output\\LST_Day\\Output_Final_30k_2030pc\\*Data.tif";
-            IFilenameDateParser modisFileParse = new FilenameDateParser_MODIS8Day();
+            IFilenameDateParser modisFileParse = new FilenameDateParser_MODIS8DayRaw();
             var details = GetFilenamesAndDates(fileWildCard, modisFileParse);
             string firstFileName = details[0].Item1;
             double[] overallGT = GDAL_Operations.GetGeoTransform(firstFileName);

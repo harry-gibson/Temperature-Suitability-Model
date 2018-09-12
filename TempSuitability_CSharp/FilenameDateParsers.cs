@@ -39,7 +39,7 @@ namespace TempSuitability_CSharp
     class FilenameDateParser_Mastergrid : IFilenameDateParser
     {
         private int _forceDayOfMonth;
-      
+
         public FilenameDateParser_Mastergrid(int? overrideOrImplicitDayOfMonth = 15)
         {
             if (!overrideOrImplicitDayOfMonth.HasValue)
@@ -119,4 +119,28 @@ namespace TempSuitability_CSharp
             return outDate;
         }
     }
+
+    class FilenameDateParser_AutoDetect : IFilenameDateParser
+    {
+        public DateTime? TryParseFilenameDate(string Filename)
+        {
+            DateTime? parsedDate = null;
+            try
+            {
+                IFilenameDateParser mgParser = new FilenameDateParser_MODIS8DayRaw();
+                parsedDate = mgParser.TryParseFilenameDate(Filename);
+            }
+            catch (ArgumentException e)
+            {
+
+            }
+            if (parsedDate != null)
+            {
+                return parsedDate;
+            }
+            IFilenameDateParser rawParser = new FilenameDateParser_Mastergrid();
+            return rawParser.TryParseFilenameDate(Filename);
+        }
+    }
 }
+    

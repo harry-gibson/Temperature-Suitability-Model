@@ -42,12 +42,22 @@ namespace TempSuitability_CSharp
             return 0;
         }
 
+        /// <summary>
+        /// If a command-line argument was passed, attempt to load it as a configuration file and 
+        /// set up the model accordingly. If the input is a folder, not a file, then write a sample 
+        /// config file into that folder as a template for the user to edit. If no command-line 
+        /// argument was given, prompt for one.
+        /// </summary>
+        /// <param name="args"></param>
+        /// <returns></returns>
         static TSIModelConfig loadConfig(string[] args)
         {
             string runtimeConfigFile;
             if (args.Length == 0)
             {
-                Console.WriteLine("Please specify a config file or hit enter to use application defaults:");
+                Console.WriteLine("Please specify a path to a configuration xml file.\n\n"+
+                    "Alternatively specify a path to a folder, to create a sample config file \n in this folder for editing.\n\n"+
+                    "Or, just hit enter to attempt to run with application default paths.");
                 Console.Write("> ");
                 runtimeConfigFile = Console.ReadLine();
             }

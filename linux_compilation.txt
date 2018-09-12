@@ -6,6 +6,8 @@ So they may not work.
 
 Instead, compile GDAL and the bindings from source, following the step by step instructions here:
 https://github.com/jealie/binaries_GDAL_Csharp/blob/master/compilationNotes.txt
+(See also See also http://wiki.wildsong.biz/index.php/Building_GDAL_on_Linux)
+
 Basically:
 
 - Get the files:
