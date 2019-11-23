@@ -1,6 +1,6 @@
-Notes for running C# GDAL applications via Mono on Linux (e.g. blades)
+Notes for running C# GDAL applications via Mono on Linux (e.g. the Blade servers in MAP)
 
-The gdal binaries for C# binding can be downloaded from https://github.com/jealie/binaries_GDAL_Csharp
+The GDAL binaries for C# binding can be downloaded from https://github.com/jealie/binaries_GDAL_Csharp
 These must be available to the application. However these binaries are compiled by the provided against a particular version of the GDAL libraries themselves and whatever native system libraries are used.
 So they may not work.
 
